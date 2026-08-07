@@ -1,0 +1,1 @@
+web: gunicorn zarplata_club:app
