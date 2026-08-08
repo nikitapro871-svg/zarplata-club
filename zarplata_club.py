@@ -1,7 +1,9 @@
-from flask import Flask, render_template_string, request, redirect, url_for, session
+from flask import Flask, render_template_string, request, redirect, url_for, session, send_file
 import sqlite3
 from datetime import date, datetime, timedelta
 import os
+import io
+import csv
 
 app = Flask(__name__)
 app.secret_key = 'zarplata_club_secret_2024'
@@ -9,7 +11,7 @@ app.permanent_session_lifetime = timedelta(days=30)
 
 # === БАЗА ДАННЫХ ===
 def get_db():
-    db_path = os.path.join(os.path.dirname(__file__), 'zarplata_club.db')
+    db_path = '/tmp/zarplata_club.db'
     conn = sqlite3.connect(db_path, check_same_thread=False)
     cur = conn.cursor()
     
@@ -46,6 +48,14 @@ def format_date_ru(date_str):
     except:
         return date_str
 
+def get_month_days(year, month):
+    first_day = date(year, month, 1)
+    if month == 12:
+        last_day = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        last_day = date(year, month + 1, 1) - timedelta(days=1)
+    return [date(year, month, d) for d in range(1, last_day.day + 1)]
+
 # === ГЛАВНАЯ СТРАНИЦА ===
 HTML = '''
 <!DOCTYPE html>
@@ -75,9 +85,7 @@ HTML = '''
             background: 
                 radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.15) 0%, transparent 60%),
                 radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.10) 0%, transparent 60%),
-                radial-gradient(ellipse at 50% 100%, rgba(255, 217, 61, 0.08) 0%, transparent 40%),
-                repeating-linear-gradient(0deg, transparent, transparent 50px, rgba(255,255,255,0.01) 50px, rgba(255,255,255,0.01) 51px),
-                repeating-linear-gradient(90deg, transparent, transparent 50px, rgba(255,255,255,0.01) 50px, rgba(255,255,255,0.01) 51px);
+                radial-gradient(ellipse at 50% 100%, rgba(255, 217, 61, 0.08) 0%, transparent 40%);
             z-index: 0;
             pointer-events: none;
         }
@@ -161,68 +169,158 @@ HTML = '''
         }
         .subtitle span { color: #9d4edd; font-weight: 700; }
         
-        .events-grid {
+        /* ===== ГЛАВНАЯ СТРАНИЦА ===== */
+        .main-menu {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 25px;
+            gap: 20px;
+            margin: 30px 0;
         }
-        .event-card {
-            background: linear-gradient(135deg, #9d4edd10 0%, #ff6b6b10 100%);
-            padding: 18px 20px;
-            border-radius: 16px;
-            border: 1px solid rgba(157, 78, 221, 0.15);
-            transition: all 0.3s ease;
+        .menu-card {
+            background: linear-gradient(135deg, #9d4edd15 0%, #ff6b6b15 100%);
+            padding: 30px 20px;
+            border-radius: 20px;
             text-align: center;
-        }
-        .event-card:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: 0 8px 30px rgba(157, 78, 221, 0.2);
-        }
-        .event-card .event-date {
-            font-size: 13px;
-            color: #9d4edd;
-            font-weight: 700;
-        }
-        .event-card .event-title {
-            font-size: 22px;
-            font-weight: 800;
+            border: 2px solid rgba(157, 78, 221, 0.15);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
             color: #333;
-            margin: 5px 0;
+            display: block;
         }
-        .event-card .event-desc {
+        .menu-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 12px 40px rgba(157, 78, 221, 0.25);
+            border-color: #9d4edd;
+        }
+        .menu-card .emoji {
+            font-size: 48px;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .menu-card .title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #333;
+        }
+        .menu-card .desc {
             font-size: 13px;
             color: #888;
+            margin-top: 5px;
         }
-        .event-card .event-emoji {
-            font-size: 32px;
-            display: block;
-            margin-bottom: 5px;
+        .menu-card.events {
+            background: linear-gradient(135deg, #ffd93d15 0%, #ff6b6b15 100%);
+            border-color: rgba(255, 217, 61, 0.3);
         }
-        .add-event-form {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-            align-items: center;
-            margin-top: 10px;
+        .menu-card.events:hover {
+            border-color: #ffd93d;
+            box-shadow: 0 12px 40px rgba(255, 217, 61, 0.25);
         }
-        .add-event-form input {
-            padding: 10px 14px;
-            border: 2px solid #e0ddf0;
-            border-radius: 12px;
-            font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            transition: all 0.3s ease;
-            flex: 1;
-            min-width: 120px;
+        
+        /* ===== КАЛЕНДАРЬ МЕРОПРИЯТИЙ ===== */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin: 15px 0;
+        }
+        .calendar-day {
             background: white;
+            padding: 8px 4px;
+            border-radius: 10px;
+            text-align: center;
+            min-height: 60px;
+            border: 1px solid #eee;
+            position: relative;
+            transition: 0.3s;
         }
-        .add-event-form input:focus {
-            outline: none;
+        .calendar-day:hover {
             border-color: #9d4edd;
-            box-shadow: 0 0 0 4px rgba(157, 78, 221, 0.15);
+            box-shadow: 0 2px 12px rgba(157, 78, 221, 0.15);
         }
-        .add-event-form input[type="date"] { min-width: 160px; cursor: pointer; }
+        .calendar-day .day-num {
+            font-weight: 700;
+            font-size: 14px;
+            color: #333;
+        }
+        .calendar-day .day-event {
+            font-size: 10px;
+            background: #ffd93d30;
+            color: #856404;
+            border-radius: 8px;
+            padding: 2px 6px;
+            margin-top: 4px;
+            display: inline-block;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .calendar-day .day-event:hover {
+            background: #ffd93d60;
+        }
+        .calendar-day.weekend .day-num {
+            color: #ff6b6b;
+        }
+        .calendar-day.today {
+            border-color: #9d4edd;
+            background: #f0edff;
+        }
+        .calendar-day .add-event-btn {
+            font-size: 12px;
+            color: #9d4edd;
+            cursor: pointer;
+            display: block;
+            margin-top: 2px;
+        }
+        .calendar-day .add-event-btn:hover {
+            color: #5a189a;
+        }
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .month-nav .month-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #333;
+        }
+        .month-nav .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 10px;
+            background: #9d4edd;
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .month-nav .btn:hover {
+            opacity: 0.8;
+        }
+        .events-list {
+            margin-top: 15px;
+        }
+        .events-list .event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background: #f8f6ff;
+            border-radius: 10px;
+            margin-bottom: 6px;
+            border-left: 3px solid #ffd93d;
+        }
+        .events-list .event-item .event-date {
+            font-weight: 600;
+            color: #9d4edd;
+            font-size: 13px;
+        }
+        .events-list .event-item .event-title {
+            font-weight: 600;
+            flex: 1;
+            margin: 0 10px;
+        }
+        
         .btn {
             padding: 11px 24px;
             border: none;
@@ -353,15 +451,6 @@ HTML = '''
         }
         .rate-badge.r400 { background: #d4edda; color: #155724; }
         .rate-badge.r350 { background: #fff3cd; color: #856404; }
-        .payment-period {
-            display: inline-block;
-            padding: 3px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 700;
-        }
-        .payment-period.first { background: #d4edda; color: #155724; }
-        .payment-period.second { background: #fff3cd; color: #856404; }
         .alert {
             padding: 14px 20px;
             border-radius: 14px;
@@ -519,6 +608,44 @@ HTML = '''
         .event-card .actions {
             margin-top: 8px;
         }
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        .chart-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .chart-bar .bar-label {
+            min-width: 80px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #555;
+        }
+        .chart-bar .bar-track {
+            flex: 1;
+            height: 24px;
+            background: #f0edff;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .chart-bar .bar-fill {
+            height: 100%;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #9d4edd, #ff6b6b);
+            transition: width 1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 8px;
+            color: white;
+            font-weight: 700;
+            font-size: 12px;
+        }
         @media (max-width: 700px) {
             .container { padding: 15px; }
             h1 { font-size: 2em; }
@@ -527,7 +654,9 @@ HTML = '''
             .logout-btn { float: none; display: block; text-align: center; margin-bottom: 10px; }
             .employee-card { flex-direction: column; align-items: stretch; gap: 8px; }
             .employee-card .actions { justify-content: flex-end; }
-            .events-grid { grid-template-columns: 1fr 1fr; }
+            .main-menu { grid-template-columns: 1fr 1fr; }
+            .calendar-grid { font-size: 12px; }
+            .calendar-day { min-height: 40px; padding: 4px; }
         }
     </style>
 </head>
@@ -575,310 +704,371 @@ HTML = '''
         <a href="/logout" class="logout-btn">🚪 Выйти</a>
     </div>
 
-    <!-- ===== МЕРОПРИЯТИЯ (вместо статистики) ===== -->
-    <div class="card" style="border-left-color: #ffd93d;">
-        <h3><span class="icon">📅</span> Мероприятия</h3>
-        <div class="events-grid">
-            {% for event in events %}
-            <div class="event-card">
-                <span class="event-emoji">🎉</span>
-                <div class="event-date">{{ event.date_ru }}</div>
-                <div class="event-title">{{ event.title }}</div>
-                <div class="event-desc">{{ event.description or '' }}</div>
-                {% if session.is_admin %}
-                <div class="actions">
-                    <form method="POST" action="/delete_event" style="display:inline;" onsubmit="return confirm('Удалить мероприятие?')">
-                        <input type="hidden" name="event_id" value="{{ event.id }}">
-                        <button type="submit" class="delete-event" title="Удалить">🗑️</button>
-                    </form>
-                </div>
-                {% endif %}
-            </div>
-            {% else %}
-            <p style="color:#999;grid-column:1/-1;text-align:center;padding:15px;">📭 Нет мероприятий</p>
-            {% endfor %}
-        </div>
+    <!-- ===== ГЛАВНОЕ МЕНЮ ===== -->
+    {% if not current_section or current_section == 'main' %}
+    <div class="main-menu">
+        <a href="/section/employees" class="menu-card">
+            <span class="emoji">👥</span>
+            <div class="title">Сотрудники</div>
+            <div class="desc">Управление персоналом</div>
+        </a>
+        <a href="/section/events" class="menu-card events">
+            <span class="emoji">📅</span>
+            <div class="title">Мероприятия</div>
+            <div class="desc">Календарь и события</div>
+        </a>
+        <a href="/section/hours" class="menu-card">
+            <span class="emoji">⏱</span>
+            <div class="title">Часы</div>
+            <div class="desc">Все записи по дням</div>
+        </a>
+        <a href="/section/payments" class="menu-card">
+            <span class="emoji">💰</span>
+            <div class="title">Выплаты</div>
+            <div class="desc">Расчёт зарплаты</div>
+        </a>
+        <a href="/section/bonus" class="menu-card">
+            <span class="emoji">🎁</span>
+            <div class="title">Премии</div>
+            <div class="desc">Управление премиями</div>
+        </a>
         {% if session.is_admin %}
-        <form method="POST" action="/add_event" class="add-event-form">
-            <input type="date" name="event_date" value="{{ today }}" required>
-            <input type="text" name="title" placeholder="Название (например, PIZZA)" required>
-            <input type="text" name="description" placeholder="Описание (необязательно)">
-            <button type="submit" class="btn btn-gold">➕ Добавить</button>
-        </form>
+        <a href="/section/add" class="menu-card">
+            <span class="emoji">➕</span>
+            <div class="title">Добавить</div>
+            <div class="desc">Новый сотрудник / часы</div>
+        </a>
         {% endif %}
     </div>
 
-    {% if session.is_admin %}
-    <!-- ====== АДМИН ====== -->
-    <div class="tabs">
-        <div class="tab active" onclick="switchTab('admin_employees')">👥 Сотрудники</div>
-        <div class="tab" onclick="switchTab('admin_hours')">⏱ Часы</div>
-        <div class="tab" onclick="switchTab('admin_payments')">📅 Выплаты</div>
-        <div class="tab" onclick="switchTab('admin_bonus')">🎁 Премии</div>
-        <div class="tab" onclick="switchTab('admin_add')">➕ Добавить</div>
-    </div>
-
-    <!-- ВКЛАДКА: СОТРУДНИКИ -->
-    <div id="tab-admin_employees">
-        <div class="card">
-            <h3><span class="icon">👥</span> Все сотрудники</h3>
-            <p style="color:#888;margin-bottom:12px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
-            {% if employees %}
-            {% for emp in employees %}
-            <div class="employee-card">
-                <div class="name" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;flex:1;">
-                    {{ emp.name }}
-                </div>
-                <div class="stats">
-                    ⏱ <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
-                    🥫 <strong>{{ emp.month_konserzhka }}</strong> · 
-                    💰 <strong>{{ emp.month_total|round(0) }}</strong> ₽
-                </div>
-                <div class="actions">
-                    <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')">
-                        <input type="hidden" name="emp_id" value="{{ emp.id }}">
-                        <button type="submit" class="delete-btn" title="Удалить сотрудника">🗑️</button>
-                    </form>
-                </div>
-            </div>
-            {% endfor %}
-            {% else %}
-            <p style="text-align:center;color:#999;padding:20px;">😴 Нет сотрудников</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- ВКЛАДКА: ЧАСЫ -->
-    <div id="tab-admin_hours" class="hidden">
-        <div class="card pink">
-            <h3><span class="icon">⏱</span> Все часы по дням</h3>
-            <div class="month-selector">
-                <form method="GET" action="/" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <input type="month" name="month" value="{{ selected_month }}">
-                    <button type="submit" class="btn btn-purple btn-sm">Показать</button>
-                </form>
-            </div>
-            {% if all_logs %}
-            <div class="table-wrapper">
-                <table>
-                    <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
-                    {% for log in all_logs %}
-                    <tr>
-                        <td>{{ log.date_ru }}</td>
-                        <td><span class="badge badge-purple">{{ log.employee }}</span></td>
-                        <td>{{ log.hours }}</td>
-                        <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
-                        <td>{% if log.konserzhka %}🥫 +1500 ₽{% else %}—{% endif %}</td>
-                        <td><strong>{{ log.total }} ₽</strong></td>
-                    </tr>
-                    {% endfor %}
-                </table>
-            </div>
-            {% else %}
-            <p style="text-align:center;color:#999;padding:20px;">📭 Нет записей</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- ВКЛАДКА: ВЫПЛАТЫ -->
-    <div id="tab-admin_payments" class="hidden">
-        <div class="card gold">
-            <h3><span class="icon">📅</span> Выплаты по периодам (1–15 и 16–конец)</h3>
-            <div class="month-selector">
-                <form method="GET" action="/" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-                    <input type="month" name="month" value="{{ selected_month }}">
-                    <button type="submit" class="btn btn-purple btn-sm">Показать</button>
-                </form>
-            </div>
-            
-            <div class="period-group">
-                <h4 class="first">📆 1–15 число</h4>
-                {% if payments.first %}
-                <div class="table-wrapper">
-                    <table>
-                        <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
-                        {% for p in payments.first %}
-                        <tr>
-                            <td>{{ p.date_ru }}</td>
-                            <td><span class="badge badge-purple">{{ p.employee }}</span></td>
-                            <td>{{ p.hours }}</td>
-                            <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
-                            <td>{% if p.konserzhka %}🥫 +1500{% else %}—{% endif %}</td>
-                            <td><strong>{{ p.total }} ₽</strong></td>
-                        </tr>
-                        {% endfor %}
-                        <tr class="total-row">
-                            <td colspan="5"><strong>ИТОГО за период</strong></td>
-                            <td><strong>{{ payments.first_total|round(0) }} ₽</strong></td>
-                        </tr>
-                    </table>
-                </div>
-                {% else %}
-                <p style="color:#999;font-size:13px;">Нет записей за этот период</p>
-                {% endif %}
-            </div>
-            
-            <div class="period-group">
-                <h4 class="second">📆 16–конец месяца</h4>
-                {% if payments.second %}
-                <div class="table-wrapper">
-                    <table>
-                        <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
-                        {% for p in payments.second %}
-                        <tr>
-                            <td>{{ p.date_ru }}</td>
-                            <td><span class="badge badge-purple">{{ p.employee }}</span></td>
-                            <td>{{ p.hours }}</td>
-                            <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
-                            <td>{% if p.konserzhka %}🥫 +1500{% else %}—{% endif %}</td>
-                            <td><strong>{{ p.total }} ₽</strong></td>
-                        </tr>
-                        {% endfor %}
-                        <tr class="total-row">
-                            <td colspan="5"><strong>ИТОГО за период</strong></td>
-                            <td><strong>{{ payments.second_total|round(0) }} ₽</strong></td>
-                        </tr>
-                    </table>
-                </div>
-                {% else %}
-                <p style="color:#999;font-size:13px;">Нет записей за этот период</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-
-    <!-- ВКЛАДКА: ПРЕМИИ (вместо бонусов) -->
-    <div id="tab-admin_bonus" class="hidden">
-        <div class="card" style="border-left-color: #ffd93d;">
-            <h3><span class="icon">🎁</span> Премии</h3>
-            <form method="POST" action="/add_bonus" class="form-group" style="margin-bottom:15px;">
-                <select name="emp_id" required>
-                    <option value="">Выберите сотрудника</option>
-                    {% for emp in employees %}
-                    <option value="{{ emp.id }}">{{ emp.name }}</option>
-                    {% endfor %}
-                </select>
-                <input type="number" name="amount" placeholder="Сумма ₽" step="0.1" required>
-                <input type="text" name="description" placeholder="Описание">
-                <input type="date" name="payment_date" value="{{ today }}">
-                <button type="submit" class="btn" style="background:linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%);color:#333;">🎁 Добавить</button>
-            </form>
-            {% if all_bonuses %}
-            <div class="table-wrapper">
-                <table>
-                    <tr><th>Дата</th><th>Сотрудник</th><th>Сумма</th><th>Описание</th></tr>
-                    {% for bonus in all_bonuses %}
-                    <tr>
-                        <td>{{ bonus.date_ru }}</td>
-                        <td><span class="badge badge-gold">{{ bonus.employee }}</span></td>
-                        <td><strong>{{ bonus.amount }} ₽</strong></td>
-                        <td>{{ bonus.description or '—' }}</td>
-                    </tr>
-                    {% endfor %}
-                </table>
-            </div>
-            {% else %}
-            <p style="color:#999;">🎁 Пока нет премий</p>
-            {% endif %}
-        </div>
-    </div>
-
-    <!-- ВКЛАДКА: ДОБАВИТЬ -->
-    <div id="tab-admin_add" class="hidden">
-        <div class="card green">
-            <h3><span class="icon">👤</span> Новый сотрудник</h3>
-            <form method="POST" action="/add_employee" class="form-group">
-                <input type="text" name="name" placeholder="Имя" required>
-                <input type="password" name="password" placeholder="Пароль" required>
-                <button type="submit" class="btn btn-green">➕ Добавить</button>
-            </form>
-        </div>
-        
-        <div class="card" style="border-left-color: #6bcb77;">
-            <h3><span class="icon">⏱</span> Добавить часы сотруднику</h3>
-            <form method="POST" action="/add_hours" class="form-group">
-                <select name="emp_id" required style="flex:1;">
-                    <option value="">Выберите сотрудника</option>
-                    {% for emp in employees %}
-                    <option value="{{ emp.id }}">{{ emp.name }}</option>
-                    {% endfor %}
-                </select>
-                <input type="number" name="hours" placeholder="Часы" step="0.5" required style="flex:1;">
-                <input type="date" name="work_date" value="{{ today }}" style="flex:1;">
-                <select name="rate" required style="flex:0 0 auto;min-width:100px;">
-                    <option value="400">400 ₽/ч</option>
-                    <option value="350">350 ₽/ч</option>
-                </select>
-                <label style="white-space:nowrap;">
-                    <input type="checkbox" name="konserzhka" value="1">
-                    🥫 Консержка (+1500)
-                </label>
-                <button type="submit" class="btn btn-green">⏱ Добавить</button>
-            </form>
-        </div>
-    </div>
-
-    {% else %}
-    <!-- ====== СОТРУДНИК ====== -->
+    <!-- ДАШБОРД (статистика) -->
     <div class="card">
-        <h3><span class="icon">👤</span> Мои данные</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
+        <h3><span class="icon">📊</span> Статистика месяца</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:15px;">
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">⏱ Часов (мес)</div>
-                <div style="font-size:24px;font-weight:800;color:#9d4edd;">{{ stats.total_hours|round(1) if stats else 0 }}</div>
+                <div style="font-size:12px;color:#888;">👥 Сотрудников</div>
+                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_employees }}</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">💰 Зарплата (мес)</div>
-                <div style="font-size:24px;font-weight:800;color:#9d4edd;">{{ stats.total_salary|round(0) if stats else 0 }} ₽</div>
+                <div style="font-size:12px;color:#888;">⏱ Всего часов</div>
+                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_hours|round(1) }}</div>
+            </div>
+            <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
+                <div style="font-size:12px;color:#888;">💰 Зарплата</div>
+                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_salary|round(0) }} ₽</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
                 <div style="font-size:12px;color:#888;">🥫 Консержек</div>
-                <div style="font-size:24px;font-weight:800;color:#9d4edd;">{{ stats.total_konserzhka if stats else 0 }}</div>
+                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_konserzhka }}</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
                 <div style="font-size:12px;color:#888;">💎 ИТОГО</div>
-                <div style="font-size:24px;font-weight:800;color:#9d4edd;">{{ stats.grand_total|round(0) if stats else 0 }} ₽</div>
+                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.grand_total|round(0) }} ₽</div>
             </div>
         </div>
         
-        <h4 style="margin-top:10px;color:#333;">📅 Мои часы по дням</h4>
+        <!-- График по сотрудникам -->
+        {% if chart_data %}
+        <div class="chart-container">
+            <h4 style="margin-bottom:10px;">Часы по сотрудникам</h4>
+            {% for item in chart_data %}
+            <div class="chart-bar">
+                <div class="bar-label">{{ item.name }}</div>
+                <div class="bar-track">
+                    <div class="bar-fill" style="width: {{ item.percent }}%;">
+                        {{ item.hours|round(1) }}ч
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- ===== РАЗДЕЛЫ ===== -->
+    {% if current_section == 'employees' %}
+    <!-- СОТРУДНИКИ -->
+    <div class="card">
+        <h3><span class="icon">👥</span> Все сотрудники</h3>
+        <p style="color:#888;margin-bottom:12px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
+        <a href="/" class="back-link">← На главную</a>
+        {% if employees %}
+        {% for emp in employees %}
+        <div class="employee-card">
+            <div class="name" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;flex:1;">
+                {{ emp.name }}
+            </div>
+            <div class="stats">
+                ⏱ <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
+                🥫 <strong>{{ emp.month_konserzhka }}</strong> · 
+                💰 <strong>{{ emp.month_total|round(0) }}</strong> ₽
+            </div>
+            <div class="actions">
+                {% if session.is_admin %}
+                <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')">
+                    <input type="hidden" name="emp_id" value="{{ emp.id }}">
+                    <button type="submit" class="delete-btn" title="Удалить сотрудника">🗑️</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <p style="text-align:center;color:#999;padding:20px;">😴 Нет сотрудников</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if current_section == 'events' %}
+    <!-- МЕРОПРИЯТИЯ (КАЛЕНДАРЬ) -->
+    <div class="card gold">
+        <h3><span class="icon">📅</span> Календарь мероприятий</h3>
+        <a href="/" class="back-link">← На главную</a>
+        
+        <div class="month-nav">
+            <button class="btn btn-sm" onclick="window.location.href='/section/events?month={{ prev_month }}'">◀</button>
+            <span class="month-title">{{ month_name }} {{ current_year }}</span>
+            <button class="btn btn-sm" onclick="window.location.href='/section/events?month={{ next_month }}'">▶</button>
+        </div>
+        
+        <div class="calendar-grid">
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Пн</div>
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Вт</div>
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Ср</div>
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Чт</div>
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Пт</div>
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Сб</div>
+            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Вс</div>
+            
+            {% for day in calendar_days %}
+            <div class="calendar-day{% if day.is_weekend %} weekend{% endif %}{% if day.is_today %} today{% endif %}">
+                <div class="day-num">{{ day.day }}</div>
+                {% if day.event %}
+                <div class="day-event" onclick="alert('{{ day.event.title }}: {{ day.event.description or '' }}')">
+                    {{ day.event.title }}
+                </div>
+                {% endif %}
+                {% if session.is_admin %}
+                <div class="add-event-btn" onclick="addEvent('{{ day.date_str }}')">+</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        
+        <!-- Добавление события -->
+        {% if session.is_admin %}
+        <div style="margin-top:15px;padding-top:15px;border-top:1px solid #eee;">
+            <h4>Добавить мероприятие</h4>
+            <form method="POST" action="/add_event" class="form-group">
+                <input type="date" name="event_date" value="{{ today }}" required>
+                <input type="text" name="title" placeholder="Название" required>
+                <input type="text" name="description" placeholder="Описание">
+                <button type="submit" class="btn btn-gold">➕ Добавить</button>
+            </form>
+        </div>
+        {% endif %}
+        
+        <!-- Список всех событий -->
+        <div class="events-list">
+            <h4 style="margin:15px 0 10px;">Все события месяца</h4>
+            {% if events %}
+            {% for event in events %}
+            <div class="event-item">
+                <span class="event-date">{{ event.date_ru }}</span>
+                <span class="event-title">{{ event.title }}</span>
+                <span style="font-size:13px;color:#888;">{{ event.description or '' }}</span>
+                {% if session.is_admin %}
+                <form method="POST" action="/delete_event" style="display:inline;" onsubmit="return confirm('Удалить мероприятие?')">
+                    <input type="hidden" name="event_id" value="{{ event.id }}">
+                    <button type="submit" class="delete-event" title="Удалить">🗑️</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <p style="color:#999;text-align:center;padding:10px;">📭 Нет событий на этот месяц</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if current_section == 'hours' %}
+    <!-- ЧАСЫ -->
+    <div class="card pink">
+        <h3><span class="icon">⏱</span> Все часы по дням</h3>
+        <a href="/" class="back-link">← На главную</a>
         <div class="month-selector">
-            <form method="GET" action="/" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <form method="GET" action="/section/hours" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
                 <button type="submit" class="btn btn-purple btn-sm">Показать</button>
             </form>
         </div>
-        {% if my_logs %}
+        {% if all_logs %}
         <div class="table-wrapper">
             <table>
-                <tr><th>Дата</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
-                {% for log in my_logs %}
+                <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
+                {% for log in all_logs %}
                 <tr>
                     <td>{{ log.date_ru }}</td>
+                    <td><span class="badge badge-purple">{{ log.employee }}</span></td>
                     <td>{{ log.hours }}</td>
                     <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
                     <td>{% if log.konserzhka %}🥫 +1500 ₽{% else %}—{% endif %}</td>
                     <td><strong>{{ log.total }} ₽</strong></td>
                 </tr>
                 {% endfor %}
-                <tr class="total-row">
-                    <td><strong>ИТОГО</strong></td>
-                    <td><strong>{{ stats.total_hours|round(1) if stats else 0 }}</strong></td>
-                    <td></td>
-                    <td><strong>{{ stats.total_konserzhka if stats else 0 }}</strong></td>
-                    <td><strong>{{ stats.total_salary|round(0) if stats else 0 }} ₽</strong></td>
+            </table>
+        </div>
+        <div style="margin-top:10px;">
+            <a href="/export?month={{ selected_month }}" class="btn btn-green">📤 Скачать Excel</a>
+        </div>
+        {% else %}
+        <p style="text-align:center;color:#999;padding:20px;">📭 Нет записей</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if current_section == 'payments' %}
+    <!-- ВЫПЛАТЫ -->
+    <div class="card gold">
+        <h3><span class="icon">📅</span> Выплаты по периодам (1–15 и 16–конец)</h3>
+        <a href="/" class="back-link">← На главную</a>
+        <div class="month-selector">
+            <form method="GET" action="/section/payments" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <input type="month" name="month" value="{{ selected_month }}">
+                <button type="submit" class="btn btn-purple btn-sm">Показать</button>
+            </form>
+        </div>
+        
+        <div class="period-group">
+            <h4 class="first">📆 1–15 число (АВАНС)</h4>
+            {% if payments.first %}
+            <div class="table-wrapper">
+                <table>
+                    <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
+                    {% for p in payments.first %}
+                    <tr>
+                        <td>{{ p.date_ru }}</td>
+                        <td><span class="badge badge-purple">{{ p.employee }}</span></td>
+                        <td>{{ p.hours }}</td>
+                        <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
+                        <td>{% if p.konserzhka %}🥫 +1500{% else %}—{% endif %}</td>
+                        <td><strong>{{ p.total }} ₽</strong></td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="5"><strong>ИТОГО за период (АВАНС)</strong></td>
+                        <td><strong>{{ payments.first_total|round(0) }} ₽</strong></td>
+                    </tr>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:#999;font-size:13px;">Нет записей за этот период</p>
+            {% endif %}
+        </div>
+        
+        <div class="period-group">
+            <h4 class="second">📆 16–конец месяца (ОКОНЧАТЕЛЬНЫЙ)</h4>
+            {% if payments.second %}
+            <div class="table-wrapper">
+                <table>
+                    <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
+                    {% for p in payments.second %}
+                    <tr>
+                        <td>{{ p.date_ru }}</td>
+                        <td><span class="badge badge-purple">{{ p.employee }}</span></td>
+                        <td>{{ p.hours }}</td>
+                        <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
+                        <td>{% if p.konserzhka %}🥫 +1500{% else %}—{% endif %}</td>
+                        <td><strong>{{ p.total }} ₽</strong></td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="total-row">
+                        <td colspan="5"><strong>ИТОГО за период (ОКОНЧАТЕЛЬНЫЙ)</strong></td>
+                        <td><strong>{{ payments.second_total|round(0) }} ₽</strong></td>
+                    </tr>
+                </table>
+            </div>
+            {% else %}
+            <p style="color:#999;font-size:13px;">Нет записей за этот период</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if current_section == 'bonus' %}
+    <!-- ПРЕМИИ -->
+    <div class="card" style="border-left-color: #ffd93d;">
+        <h3><span class="icon">🎁</span> Премии</h3>
+        <a href="/" class="back-link">← На главную</a>
+        {% if session.is_admin %}
+        <form method="POST" action="/add_bonus" class="form-group" style="margin-bottom:15px;">
+            <select name="emp_id" required>
+                <option value="">Выберите сотрудника</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}">{{ emp.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="amount" placeholder="Сумма ₽" step="0.1" required>
+            <input type="text" name="description" placeholder="Описание">
+            <input type="date" name="payment_date" value="{{ today }}">
+            <button type="submit" class="btn" style="background:linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%);color:#333;">🎁 Добавить</button>
+        </form>
+        {% endif %}
+        {% if all_bonuses %}
+        <div class="table-wrapper">
+            <table>
+                <tr><th>Дата</th><th>Сотрудник</th><th>Сумма</th><th>Описание</th></tr>
+                {% for bonus in all_bonuses %}
+                <tr>
+                    <td>{{ bonus.date_ru }}</td>
+                    <td><span class="badge badge-gold">{{ bonus.employee }}</span></td>
+                    <td><strong>{{ bonus.amount }} ₽</strong></td>
+                    <td>{{ bonus.description or '—' }}</td>
                 </tr>
+                {% endfor %}
             </table>
         </div>
         {% else %}
-        <p style="color:#999;">📭 Нет записей за этот месяц</p>
+        <p style="color:#999;">🎁 Пока нет премий</p>
         {% endif %}
-        
-        <div style="margin-top:15px;padding-top:15px;border-top:1px solid #eee;background:#f8f8f8;border-radius:12px;padding:15px;text-align:center;">
-            <p style="color:#888;font-size:14px;">
-                🔒 Добавление часов доступно только администратору
-            </p>
-        </div>
+    </div>
+    {% endif %}
+
+    {% if current_section == 'add' and session.is_admin %}
+    <!-- ДОБАВИТЬ -->
+    <div class="card green">
+        <h3><span class="icon">👤</span> Новый сотрудник</h3>
+        <a href="/" class="back-link">← На главную</a>
+        <form method="POST" action="/add_employee" class="form-group">
+            <input type="text" name="name" placeholder="Имя" required>
+            <input type="password" name="password" placeholder="Пароль" required>
+            <button type="submit" class="btn btn-green">➕ Добавить</button>
+        </form>
+    </div>
+    
+    <div class="card" style="border-left-color: #6bcb77;">
+        <h3><span class="icon">⏱</span> Добавить часы сотруднику</h3>
+        <form method="POST" action="/add_hours" class="form-group">
+            <select name="emp_id" required style="flex:1;">
+                <option value="">Выберите сотрудника</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}">{{ emp.name }}</option>
+                {% endfor %}
+            </select>
+            <input type="number" name="hours" placeholder="Часы" step="0.5" required style="flex:1;">
+            <input type="date" name="work_date" value="{{ today }}" style="flex:1;">
+            <select name="rate" required style="flex:0 0 auto;min-width:100px;">
+                <option value="400">400 ₽/ч</option>
+                <option value="350">350 ₽/ч</option>
+            </select>
+            <label style="white-space:nowrap;">
+                <input type="checkbox" name="konserzhka" value="1">
+                🥫 Консержка (+1500)
+            </label>
+            <button type="submit" class="btn btn-green">⏱ Добавить</button>
+        </form>
     </div>
     {% endif %}
 
@@ -894,6 +1084,32 @@ function switchTab(tab) {
     document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
     document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
     document.getElementById('tab-' + tab).classList.remove('hidden');
+}
+function addEvent(date) {
+    var title = prompt('Введите название мероприятия:');
+    if (title) {
+        var desc = prompt('Описание (необязательно):');
+        var form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/add_event';
+        var input1 = document.createElement('input');
+        input1.type = 'hidden';
+        input1.name = 'event_date';
+        input1.value = date;
+        var input2 = document.createElement('input');
+        input2.type = 'hidden';
+        input2.name = 'title';
+        input2.value = title;
+        var input3 = document.createElement('input');
+        input3.type = 'hidden';
+        input3.name = 'description';
+        input3.value = desc || '';
+        form.appendChild(input1);
+        form.appendChild(input2);
+        form.appendChild(input3);
+        document.body.appendChild(form);
+        form.submit();
+    }
 }
 </script>
 </body>
@@ -1166,10 +1382,11 @@ EMPLOYEE_HTML = '''
 </html>
 '''
 
+# === МАРШРУТЫ ===
 @app.route('/')
 def index():
     if session.get('user_id') is None:
-        return render_template_string(HTML, session={}, employees=[], all_logs=[], all_bonuses=[], my_logs=[], stats={}, payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, events=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), msg=request.args.get('msg'))
+        return render_template_string(HTML, session={}, employees=[], all_logs=[], all_bonuses=[], my_logs=[], stats={}, payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, events=[], calendar_days=[], chart_data=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', current_year=0, prev_month='', next_month='', msg=request.args.get('msg'))
     
     conn = get_db()
     today = date.today()
@@ -1182,7 +1399,9 @@ def index():
     my_logs = []
     stats = {}
     payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
+    chart_data = []
     
+    # Мероприятия
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
     events = []
     for ev in events_raw:
@@ -1197,6 +1416,7 @@ def index():
     if session.get('is_admin'):
         employees_raw = conn.execute("SELECT id, name FROM employees").fetchall()
         
+        max_hours = 0
         for emp in employees_raw:
             rows_month = conn.execute(
                 "SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ?",
@@ -1212,7 +1432,7 @@ def index():
             ).fetchall()
             month_bonus = sum(b[0] for b in bonus_month)
             
-            employees.append({
+            emp_data = {
                 'id': emp[0],
                 'name': emp[1],
                 'month_hours': month_hours,
@@ -1220,7 +1440,21 @@ def index():
                 'month_konserzhka': month_konserzhka,
                 'month_bonus': month_bonus,
                 'month_total': month_salary + month_konserzhka + month_bonus
-            })
+            }
+            employees.append(emp_data)
+            if month_hours > max_hours:
+                max_hours = month_hours
+        
+        # Данные для графика
+        if max_hours > 0:
+            for emp in employees:
+                percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
+                chart_data.append({
+                    'name': emp['name'],
+                    'hours': emp['month_hours'],
+                    'percent': min(percent, 100)
+                })
+            chart_data.sort(key=lambda x: x['hours'], reverse=True)
         
         logs = conn.execute(
             "SELECT h.work_date, e.name, h.hours, h.rate, h.konserzhka FROM hours_log h JOIN employees e ON h.employee_id=e.id WHERE h.work_date LIKE ? ORDER BY h.work_date DESC",
@@ -1263,11 +1497,16 @@ def index():
                 'description': bonus[3]
             })
         
-        stats = {}
+        stats = {
+            'total_employees': len(employees_raw),
+            'total_hours': sum(e['month_hours'] for e in employees),
+            'total_salary': sum(e['month_salary'] for e in employees),
+            'total_konserzhka': sum(e['month_konserzhka'] for e in employees),
+            'grand_total': sum(e['month_total'] for e in employees)
+        }
         
     else:
         emp_id = session['user_id']
-        
         logs = conn.execute(
             "SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC",
             (emp_id, month + "%")
@@ -1295,13 +1534,52 @@ def index():
         total_bonus = sum(b[0] for b in bonuses)
         
         stats = {
+            'total_employees': 1,
             'total_hours': sum(l['hours'] for l in my_logs),
             'total_salary': total_salary,
             'total_konserzhka': total_konserzhka,
             'grand_total': total_salary + total_konserzhka + total_bonus
         }
     
+    # Календарь
+    year, month_num = map(int, month.split('-'))
+    days_in_month = get_month_days(year, month_num)
+    calendar_days = []
+    month_name_ru = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][month_num - 1]
+    
+    # Получаем события для календаря
+    events_by_date = {}
+    for ev in events_raw:
+        events_by_date[ev[1]] = ev
+    
+    first_weekday = days_in_month[0].weekday()
+    start_offset = (first_weekday - 0) % 7
+    
+    # Пустые дни в начале
+    for i in range(start_offset):
+        calendar_days.append({'day': '', 'is_weekend': False, 'is_today': False, 'event': None, 'date_str': ''})
+    
+    for d in days_in_month:
+        date_str = d.strftime('%Y-%m-%d')
+        is_weekend = d.weekday() >= 5
+        is_today = date_str == today_str
+        event = events_by_date.get(date_str)
+        calendar_days.append({
+            'day': d.day,
+            'is_weekend': is_weekend,
+            'is_today': is_today,
+            'event': {'title': event[2], 'description': event[3]} if event else None,
+            'date_str': date_str
+        })
+    
+    # Навигация по месяцам
+    prev_month_date = date(year, month_num, 1) - timedelta(days=1)
+    next_month_date = date(year, month_num, 1) + timedelta(days=32)
+    prev_month = prev_month_date.strftime('%Y-%m')
+    next_month = next_month_date.strftime('%Y-%m')
+    
     conn.close()
+    
     return render_template_string(
         HTML,
         session=session,
@@ -1312,18 +1590,232 @@ def index():
         stats=stats,
         payments=payments,
         events=events,
+        calendar_days=calendar_days,
+        chart_data=chart_data,
         today=today_str,
         selected_month=month,
+        current_section='main',
+        month_name=f'{month_name_ru} {year}',
+        current_year=year,
+        prev_month=prev_month,
+        next_month=next_month,
+        msg=request.args.get('msg')
+    )
+
+@app.route('/section/<section>')
+def section(section):
+    if session.get('user_id') is None:
+        return redirect(url_for('index', msg='Войдите в систему!'))
+    
+    conn = get_db()
+    today = date.today()
+    month = request.args.get('month', today.strftime('%Y-%m'))
+    today_str = today.strftime('%Y-%m-%d')
+    
+    employees = []
+    all_logs = []
+    all_bonuses = []
+    stats = {}
+    payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
+    chart_data = []
+    events = []
+    
+    # Мероприятия
+    events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
+    for ev in events_raw:
+        events.append({
+            'id': ev[0],
+            'date': ev[1],
+            'date_ru': format_date_ru(ev[1]),
+            'title': ev[2],
+            'description': ev[3]
+        })
+    
+    if session.get('is_admin'):
+        employees_raw = conn.execute("SELECT id, name FROM employees").fetchall()
+        max_hours = 0
+        for emp in employees_raw:
+            rows_month = conn.execute(
+                "SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ?",
+                (emp[0], month + "%")
+            ).fetchall()
+            month_hours = sum(r[0] for r in rows_month)
+            month_salary = sum(r[0] * r[1] for r in rows_month)
+            month_konserzhka = sum(1500 for r in rows_month if r[2] == 1)
+            
+            bonus_month = conn.execute(
+                "SELECT amount FROM fixed_payments WHERE employee_id=? AND payment_date LIKE ?",
+                (emp[0], month + "%")
+            ).fetchall()
+            month_bonus = sum(b[0] for b in bonus_month)
+            
+            emp_data = {
+                'id': emp[0],
+                'name': emp[1],
+                'month_hours': month_hours,
+                'month_salary': month_salary,
+                'month_konserzhka': month_konserzhka,
+                'month_bonus': month_bonus,
+                'month_total': month_salary + month_konserzhka + month_bonus
+            }
+            employees.append(emp_data)
+            if month_hours > max_hours:
+                max_hours = month_hours
+        
+        if max_hours > 0:
+            for emp in employees:
+                percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
+                chart_data.append({
+                    'name': emp['name'],
+                    'hours': emp['month_hours'],
+                    'percent': min(percent, 100)
+                })
+            chart_data.sort(key=lambda x: x['hours'], reverse=True)
+        
+        logs = conn.execute(
+            "SELECT h.work_date, e.name, h.hours, h.rate, h.konserzhka FROM hours_log h JOIN employees e ON h.employee_id=e.id WHERE h.work_date LIKE ? ORDER BY h.work_date DESC",
+            (month + "%",)
+        ).fetchall()
+        for log in logs:
+            total = log[2] * log[3] + (1500 if log[4] == 1 else 0)
+            all_logs.append({
+                'date': log[0],
+                'date_ru': format_date_ru(log[0]),
+                'employee': log[1],
+                'hours': log[2],
+                'rate': log[3],
+                'konserzhka': log[4],
+                'total': total
+            })
+            
+            day = log[0].split('-')[2]
+            period = 'first' if int(day) <= 15 else 'second'
+            payments[period].append({
+                'date': log[0],
+                'date_ru': format_date_ru(log[0]),
+                'employee': log[1],
+                'hours': log[2],
+                'rate': log[3],
+                'konserzhka': log[4],
+                'total': total
+            })
+            payments[period + '_total'] = payments.get(period + '_total', 0) + total
+        
+        bonuses = conn.execute(
+            "SELECT f.payment_date, e.name, f.amount, f.description FROM fixed_payments f JOIN employees e ON f.employee_id=e.id ORDER BY f.payment_date DESC"
+        ).fetchall()
+        for bonus in bonuses:
+            all_bonuses.append({
+                'date': bonus[0],
+                'date_ru': format_date_ru(bonus[0]),
+                'employee': bonus[1],
+                'amount': bonus[2],
+                'description': bonus[3]
+            })
+        
+        stats = {
+            'total_employees': len(employees_raw),
+            'total_hours': sum(e['month_hours'] for e in employees),
+            'total_salary': sum(e['month_salary'] for e in employees),
+            'total_konserzhka': sum(e['month_konserzhka'] for e in employees),
+            'grand_total': sum(e['month_total'] for e in employees)
+        }
+    else:
+        emp_id = session['user_id']
+        logs = conn.execute(
+            "SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC",
+            (emp_id, month + "%")
+        ).fetchall()
+        for log in logs:
+            total = log[1] * log[2] + (1500 if log[3] == 1 else 0)
+            all_logs.append({
+                'date': log[0],
+                'date_ru': format_date_ru(log[0]),
+                'employee': session['user_name'],
+                'hours': log[1],
+                'rate': log[2],
+                'konserzhka': log[3],
+                'total': total
+            })
+            
+            day = log[0].split('-')[2]
+            period = 'first' if int(day) <= 15 else 'second'
+            payments[period].append({
+                'date': log[0],
+                'date_ru': format_date_ru(log[0]),
+                'employee': session['user_name'],
+                'hours': log[1],
+                'rate': log[2],
+                'konserzhka': log[3],
+                'total': total
+            })
+            payments[period + '_total'] = payments.get(period + '_total', 0) + total
+    
+    # Календарь
+    year, month_num = map(int, month.split('-'))
+    days_in_month = get_month_days(year, month_num)
+    calendar_days = []
+    month_name_ru = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][month_num - 1]
+    
+    events_by_date = {}
+    for ev in events_raw:
+        events_by_date[ev[1]] = ev
+    
+    first_weekday = days_in_month[0].weekday()
+    start_offset = (first_weekday - 0) % 7
+    
+    for i in range(start_offset):
+        calendar_days.append({'day': '', 'is_weekend': False, 'is_today': False, 'event': None, 'date_str': ''})
+    
+    for d in days_in_month:
+        date_str = d.strftime('%Y-%m-%d')
+        is_weekend = d.weekday() >= 5
+        is_today = date_str == today_str
+        event = events_by_date.get(date_str)
+        calendar_days.append({
+            'day': d.day,
+            'is_weekend': is_weekend,
+            'is_today': is_today,
+            'event': {'title': event[2], 'description': event[3]} if event else None,
+            'date_str': date_str
+        })
+    
+    prev_month_date = date(year, month_num, 1) - timedelta(days=1)
+    next_month_date = date(year, month_num, 1) + timedelta(days=32)
+    prev_month = prev_month_date.strftime('%Y-%m')
+    next_month = next_month_date.strftime('%Y-%m')
+    
+    conn.close()
+    
+    return render_template_string(
+        HTML,
+        session=session,
+        employees=employees,
+        all_logs=all_logs[:200],
+        all_bonuses=all_bonuses[:200],
+        my_logs=[],
+        stats=stats,
+        payments=payments,
+        events=events,
+        calendar_days=calendar_days,
+        chart_data=chart_data,
+        today=today_str,
+        selected_month=month,
+        current_section=section,
+        month_name=f'{month_name_ru} {year}',
+        current_year=year,
+        prev_month=prev_month,
+        next_month=next_month,
         msg=request.args.get('msg')
     )
 
 @app.route('/employee/<int:emp_id>')
 def employee_detail(emp_id):
     if session.get('user_id') is None:
-        return redirect(url_for('index', msg='❌ Войдите в систему!'))
+        return redirect(url_for('index', msg='Войдите в систему!'))
     
     if not session.get('is_admin') and session['user_id'] != emp_id:
-        return redirect(url_for('index', msg='❌ У вас нет доступа к этому сотруднику!'))
+        return redirect(url_for('index', msg='Нет доступа!'))
     
     conn = get_db()
     today = date.today()
@@ -1332,7 +1824,7 @@ def employee_detail(emp_id):
     employee = conn.execute("SELECT id, name FROM employees WHERE id=?", (emp_id,)).fetchone()
     if not employee:
         conn.close()
-        return redirect(url_for('index', msg='❌ Сотрудник не найден!'))
+        return redirect(url_for('index', msg='Сотрудник не найден!'))
     
     logs_raw = conn.execute(
         "SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC",
@@ -1414,63 +1906,63 @@ def login():
     password = request.form.get('password', '').strip()
     
     if not name or not password:
-        return redirect(url_for('index', msg='❌ Введите имя и пароль!'))
+        return redirect(url_for('index', msg='Введите имя и пароль!'))
     
     if name == 'admin' and password == 'admin123':
         session.permanent = True
         session['user_id'] = 0
         session['user_name'] = 'Admin'
         session['is_admin'] = True
-        return redirect(url_for('index', msg='👑 Добро пожаловать, Админ!'))
+        return redirect(url_for('index', msg='Добро пожаловать, Админ!'))
     
     conn = get_db()
     employee = conn.execute("SELECT id, name, password FROM employees WHERE name=?", (name,)).fetchone()
     conn.close()
     
     if not employee:
-        return redirect(url_for('index', msg='❌ Сотрудник не найден!'))
+        return redirect(url_for('index', msg='Сотрудник не найден!'))
     
     if employee[2] != password:
-        return redirect(url_for('index', msg='❌ Неверный пароль!'))
+        return redirect(url_for('index', msg='Неверный пароль!'))
     
     session.permanent = True
     session['user_id'] = employee[0]
     session['user_name'] = employee[1]
     session['is_admin'] = False
-    return redirect(url_for('index', msg=f'👋 Добро пожаловать, {employee[1]}!'))
+    return redirect(url_for('index', msg=f'Добро пожаловать, {employee[1]}!'))
 
 @app.route('/logout')
 def logout():
     session.clear()
-    return redirect(url_for('index', msg='🚪 Вы вышли из системы'))
+    return redirect(url_for('index', msg='Вы вышли из системы'))
 
 @app.route('/add_employee', methods=['POST'])
 def add_employee():
     if not session.get('is_admin'):
-        return redirect(url_for('index', msg='❌ Только админ может добавлять сотрудников!'))
+        return redirect(url_for('index', msg='Только админ может добавлять сотрудников!'))
     
     name = request.form.get('name', '').strip()
     password = request.form.get('password', '').strip()
     
     if not name or not password:
-        return redirect(url_for('index', msg='❌ Введите имя и пароль!'))
+        return redirect(url_for('index', msg='Введите имя и пароль!'))
     
     conn = get_db()
     try:
         conn.execute("INSERT INTO employees (name, password) VALUES (?, ?)", (name, password))
         conn.commit()
-        msg = f"👤 {name} добавлен!"
+        msg = f"Сотрудник {name} добавлен!"
     except sqlite3.IntegrityError:
-        msg = f"❌ Сотрудник '{name}' уже существует!"
+        msg = f"Сотрудник '{name}' уже существует!"
     except Exception as e:
-        msg = f"❌ Ошибка: {str(e)}"
+        msg = f"Ошибка: {str(e)}"
     conn.close()
     return redirect(url_for('index', msg=msg))
 
 @app.route('/delete_employee', methods=['POST'])
 def delete_employee():
     if not session.get('is_admin'):
-        return redirect(url_for('index', msg='❌ Только админ может удалять сотрудников!'))
+        return redirect(url_for('index', msg='Только админ может удалять сотрудников!'))
     
     emp_id = int(request.form['emp_id'])
     conn = get_db()
@@ -1479,58 +1971,57 @@ def delete_employee():
         conn.execute("DELETE FROM fixed_payments WHERE employee_id=?", (emp_id,))
         conn.execute("DELETE FROM employees WHERE id=?", (emp_id,))
         conn.commit()
-        msg = "🗑️ Сотрудник удалён!"
+        msg = "Сотрудник удалён!"
     except Exception as e:
-        msg = f"❌ Ошибка: {str(e)}"
+        msg = f"Ошибка: {str(e)}"
     conn.close()
     return redirect(url_for('index', msg=msg))
 
 @app.route('/add_event', methods=['POST'])
 def add_event():
     if not session.get('is_admin'):
-        return redirect(url_for('index', msg='❌ Только админ может добавлять мероприятия!'))
+        return redirect(url_for('index', msg='Только админ может добавлять мероприятия!'))
     
     event_date = request.form.get('event_date', '')
     title = request.form.get('title', '').strip()
     description = request.form.get('description', '').strip()
     
     if not event_date or not title:
-        return redirect(url_for('index', msg='❌ Введите дату и название мероприятия!'))
+        return redirect(url_for('index', msg='Введите дату и название!'))
     
     conn = get_db()
     try:
-        conn.execute("INSERT INTO events (event_date, title, description) VALUES (?, ?, ?)",
-                    (event_date, title, description))
+        conn.execute("INSERT INTO events (event_date, title, description) VALUES (?, ?, ?)", (event_date, title, description))
         conn.commit()
-        msg = f"✅ Мероприятие '{title}' добавлено!"
+        msg = f"Мероприятие '{title}' добавлено!"
     except Exception as e:
-        msg = f"❌ Ошибка: {str(e)}"
+        msg = f"Ошибка: {str(e)}"
     conn.close()
     return redirect(url_for('index', msg=msg))
 
 @app.route('/delete_event', methods=['POST'])
 def delete_event():
     if not session.get('is_admin'):
-        return redirect(url_for('index', msg='❌ Только админ может удалять мероприятия!'))
+        return redirect(url_for('index', msg='Только админ может удалять мероприятия!'))
     
     event_id = int(request.form['event_id'])
     conn = get_db()
     try:
         conn.execute("DELETE FROM events WHERE id=?", (event_id,))
         conn.commit()
-        msg = "🗑️ Мероприятие удалено!"
+        msg = "Мероприятие удалено!"
     except Exception as e:
-        msg = f"❌ Ошибка: {str(e)}"
+        msg = f"Ошибка: {str(e)}"
     conn.close()
     return redirect(url_for('index', msg=msg))
 
 @app.route('/add_hours', methods=['POST'])
 def add_hours():
     if session.get('user_id') is None:
-        return redirect(url_for('index', msg='❌ Войдите в систему!'))
+        return redirect(url_for('index', msg='Войдите в систему!'))
     
     if not session.get('is_admin'):
-        return redirect(url_for('index', msg='❌ Только администратор может добавлять часы!'))
+        return redirect(url_for('index', msg='Только администратор может добавлять часы!'))
     
     try:
         emp_id = int(request.form['emp_id'])
@@ -1540,19 +2031,15 @@ def add_hours():
         konserzhka = 1 if request.form.get('konserzhka') == '1' else 0
         
         if not hours_str:
-            return redirect(url_for('index', msg='❌ Введите часы!'))
-        try:
-            hours = float(hours_str)
-        except ValueError:
-            return redirect(url_for('index', msg='❌ Часы должны быть числом!'))
+            return redirect(url_for('index', msg='Введите часы!'))
+        hours = float(hours_str)
         if hours <= 0:
-            return redirect(url_for('index', msg='❌ Часы должны быть больше 0!'))
+            return redirect(url_for('index', msg='Часы должны быть больше 0!'))
         
         if not work_date:
             work_date = str(date.today())
         
         conn = get_db()
-        
         conn.execute(
             "INSERT INTO hours_log (employee_id, work_date, hours, rate, konserzhka) VALUES (?, ?, ?, ?, ?)",
             (emp_id, work_date, hours, rate, konserzhka)
@@ -1563,18 +2050,16 @@ def add_hours():
         conn.close()
         
         total = hours * rate + (1500 if konserzhka else 0)
-        konserzhka_text = " 🥫+1500" if konserzhka else ""
-        msg = f"✅ {name} ({format_date_ru(work_date)}): {hours}ч × {rate}₽ = {hours*rate}₽{konserzhka_text} (итого {total}₽)"
-        
+        msg = f"{name} ({format_date_ru(work_date)}): {hours}ч × {rate}₽ = {hours*rate}₽" + (" (+1500 консержка)" if konserzhka else "")
     except Exception as e:
-        msg = f"❌ Ошибка: {str(e)}"
+        msg = f"Ошибка: {str(e)}"
     
     return redirect(url_for('index', msg=msg))
 
 @app.route('/add_bonus', methods=['POST'])
 def add_bonus():
     if not session.get('is_admin'):
-        return redirect(url_for('index', msg='❌ Только админ может добавлять премии!'))
+        return redirect(url_for('index', msg='Только админ может добавлять премии!'))
     
     try:
         emp_id = int(request.form['emp_id'])
@@ -1583,13 +2068,10 @@ def add_bonus():
         payment_date = request.form.get('payment_date', '')
         
         if not amount_str:
-            return redirect(url_for('index', msg='❌ Введите сумму премии!'))
-        try:
-            amount = float(amount_str)
-        except ValueError:
-            return redirect(url_for('index', msg='❌ Сумма должна быть числом!'))
+            return redirect(url_for('index', msg='Введите сумму!'))
+        amount = float(amount_str)
         if amount <= 0:
-            return redirect(url_for('index', msg='❌ Сумма должна быть больше 0!'))
+            return redirect(url_for('index', msg='Сумма должна быть больше 0!'))
         
         if not payment_date:
             payment_date = str(date.today())
@@ -1604,12 +2086,48 @@ def add_bonus():
         name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
         conn.close()
         
-        msg = f"🎁 {name}: премия {amount}₽ ({description or 'без описания'})"
-        
+        msg = f"{name}: премия {amount}₽ ({description or 'без описания'})"
     except Exception as e:
-        msg = f"❌ Ошибка: {str(e)}"
+        msg = f"Ошибка: {str(e)}"
     
     return redirect(url_for('index', msg=msg))
+
+@app.route('/export')
+def export():
+    if session.get('user_id') is None:
+        return redirect(url_for('index', msg='Войдите в систему!'))
+    
+    month = request.args.get('month', date.today().strftime('%Y-%m'))
+    
+    conn = get_db()
+    logs = conn.execute(
+        "SELECT h.work_date, e.name, h.hours, h.rate, h.konserzhka FROM hours_log h JOIN employees e ON h.employee_id=e.id WHERE h.work_date LIKE ? ORDER BY h.work_date",
+        (month + "%",)
+    ).fetchall()
+    conn.close()
+    
+    output = io.StringIO()
+    writer = csv.writer(output, delimiter=';')
+    writer.writerow(['Дата', 'Сотрудник', 'Часы', 'Ставка', 'Консержка', 'Итого'])
+    
+    for log in logs:
+        total = log[2] * log[3] + (1500 if log[4] == 1 else 0)
+        writer.writerow([
+            format_date_ru(log[0]),
+            log[1],
+            log[2],
+            f"{log[3]} ₽/ч",
+            'Да' if log[4] == 1 else 'Нет',
+            total
+        ])
+    
+    output.seek(0)
+    return send_file(
+        io.BytesIO(output.getvalue().encode('utf-8-sig')),
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'zarplata_{month}.csv'
+    )
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
