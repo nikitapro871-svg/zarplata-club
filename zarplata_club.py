@@ -826,7 +826,6 @@ HTML = '''
     <div class="header">
         <span class="logo">🏢</span>
         <h1>ЗАРПЛАТА КЛУБ</h1>
-        <p class="subtitle">🎵 Учёт зарплаты · Ставка <span>400</span> или <span>350</span> ₽/ч · Консержка <span>+1500 ₽</span></p>
         {% if session.get('user_id') is not none %}
         <button class="theme-toggle" onclick="toggleTheme()" title="Сменить тему">
             <i class="fas fa-moon"></i>
