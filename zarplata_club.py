@@ -65,6 +65,7 @@ HTML = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎵 Зарплата Клуб</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -103,24 +104,6 @@ HTML = '''
             0%, 100% { opacity: 0.05; transform: scale(1); }
             50% { opacity: 0.12; transform: scale(1.1); }
         }
-        .float-icon {
-            position: fixed;
-            font-size: 30px;
-            opacity: 0.06;
-            pointer-events: none;
-            z-index: 0;
-            animation: floatIcon 10s ease-in-out infinite;
-        }
-        .float-icon:nth-child(1) { top: 15%; left: 5%; animation-delay: 0s; }
-        .float-icon:nth-child(2) { top: 75%; right: 8%; animation-delay: 3s; font-size: 24px; }
-        .float-icon:nth-child(3) { bottom: 25%; left: 15%; animation-delay: 5s; font-size: 40px; }
-        .float-icon:nth-child(4) { top: 45%; right: 15%; animation-delay: 2s; font-size: 20px; }
-        .float-icon:nth-child(5) { top: 10%; right: 30%; animation-delay: 4s; font-size: 18px; }
-        .float-icon:nth-child(6) { bottom: 10%; right: 25%; animation-delay: 1s; font-size: 28px; }
-        @keyframes floatIcon {
-            0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-            50% { transform: translateY(-25px) rotate(10deg) scale(1.1); }
-        }
         .container {
             max-width: 1300px;
             margin: 0 auto;
@@ -146,6 +129,7 @@ HTML = '''
             margin-bottom: 20px;
             padding-bottom: 15px;
             border-bottom: 2px solid rgba(157, 78, 221, 0.15);
+            position: relative;
         }
         .header .logo {
             font-size: 50px;
@@ -169,10 +153,31 @@ HTML = '''
         }
         .subtitle span { color: #9d4edd; font-weight: 700; }
         
-        /* ===== ГЛАВНАЯ СТРАНИЦА ===== */
+        /* ===== КНОПКА ВЫХОДА (МАЛЕНЬКАЯ, НЕ МЕШАЕТ) ===== */
+        .logout-icon {
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-size: 20px;
+            color: #ff6b6b;
+            text-decoration: none;
+            padding: 8px 12px;
+            border-radius: 12px;
+            transition: 0.3s;
+            background: rgba(255,107,107,0.08);
+        }
+        .logout-icon:hover {
+            background: rgba(255,107,107,0.2);
+            transform: scale(1.1);
+        }
+        .logout-icon i {
+            margin-right: 4px;
+        }
+        
+        /* ===== ГЛАВНОЕ МЕНЮ ===== */
         .main-menu {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 20px;
             margin: 30px 0;
         }
@@ -193,18 +198,19 @@ HTML = '''
             box-shadow: 0 12px 40px rgba(157, 78, 221, 0.25);
             border-color: #9d4edd;
         }
-        .menu-card .emoji {
-            font-size: 48px;
+        .menu-card .icon {
+            font-size: 40px;
             display: block;
             margin-bottom: 10px;
+            color: #9d4edd;
         }
         .menu-card .title {
-            font-size: 18px;
+            font-size: 17px;
             font-weight: 700;
             color: #333;
         }
         .menu-card .desc {
-            font-size: 13px;
+            font-size: 12px;
             color: #888;
             margin-top: 5px;
         }
@@ -216,6 +222,8 @@ HTML = '''
             border-color: #ffd93d;
             box-shadow: 0 12px 40px rgba(255, 217, 61, 0.25);
         }
+        .menu-card.events .icon { color: #f6b93b; }
+        .menu-card.add .icon { color: #6bcb77; }
         
         /* ===== КАЛЕНДАРЬ МЕРОПРИЯТИЙ ===== */
         .calendar-grid {
@@ -293,6 +301,7 @@ HTML = '''
             color: white;
             cursor: pointer;
             font-weight: 600;
+            font-size: 14px;
         }
         .month-nav .btn:hover {
             opacity: 0.8;
@@ -304,7 +313,7 @@ HTML = '''
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 12px;
+            padding: 10px 14px;
             background: #f8f6ff;
             border-radius: 10px;
             margin-bottom: 6px;
@@ -343,7 +352,6 @@ HTML = '''
         .btn-gold { background: linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%); color: #333; }
         .btn-red { background: linear-gradient(135deg, #ff6b6b 0%, #c0392b 100%); }
         .btn-sm { padding: 6px 14px; font-size: 12px; }
-        .btn-pink { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%); }
         
         .card {
             background: #f8f6ff;
@@ -363,12 +371,11 @@ HTML = '''
             font-weight: 700;
             font-size: 1.2em;
         }
-        .card h3 .icon { font-size: 24px; }
+        .card h3 .icon { font-size: 22px; color: #9d4edd; }
         .card.green { border-left-color: #6bcb77; }
         .card.pink { border-left-color: #ff6b6b; }
         .card.gold { border-left-color: #ffd93d; }
         .card.blue { border-left-color: #4facfe; }
-        .card.red { border-left-color: #dc3545; }
         
         .form-group {
             display: flex;
@@ -431,7 +438,6 @@ HTML = '''
         }
         .badge-purple { background: #e8d5f5; color: #6c3483; }
         .badge-gold { background: #fff3cd; color: #856404; }
-        .badge-red { background: #f8d7da; color: #721c24; }
         .badge-green { background: #d4edda; color: #155724; }
         .konserzhka-badge {
             display: inline-block;
@@ -522,21 +528,6 @@ HTML = '''
             transform: translateX(-5px);
             color: #5a189a;
         }
-        .logout-btn {
-            float: right;
-            background: #ff6b6b;
-            padding: 8px 16px;
-            border-radius: 12px;
-            color: white;
-            text-decoration: none;
-            font-weight: 700;
-            transition: 0.3s;
-            font-size: 14px;
-        }
-        .logout-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
-        }
         .employee-card {
             display: flex;
             justify-content: space-between;
@@ -605,9 +596,6 @@ HTML = '''
             transform: scale(1.2);
             color: #c0392b;
         }
-        .event-card .actions {
-            margin-top: 8px;
-        }
         .chart-container {
             background: white;
             border-radius: 12px;
@@ -651,12 +639,12 @@ HTML = '''
             h1 { font-size: 2em; }
             .form-group { flex-direction: column; }
             .btn { width: 100%; justify-content: center; }
-            .logout-btn { float: none; display: block; text-align: center; margin-bottom: 10px; }
-            .employee-card { flex-direction: column; align-items: stretch; gap: 8px; }
-            .employee-card .actions { justify-content: flex-end; }
             .main-menu { grid-template-columns: 1fr 1fr; }
             .calendar-grid { font-size: 12px; }
             .calendar-day { min-height: 40px; padding: 4px; }
+            .logout-icon { font-size: 16px; padding: 4px 8px; }
+            .employee-card { flex-direction: column; align-items: stretch; gap: 8px; }
+            .employee-card .actions { justify-content: flex-end; }
         }
     </style>
 </head>
@@ -665,28 +653,28 @@ HTML = '''
 <div class="disco-ball d1"></div>
 <div class="disco-ball d2"></div>
 <div class="disco-ball d3"></div>
-<div class="float-icon">🎵</div>
-<div class="float-icon">🎶</div>
-<div class="float-icon">✨</div>
-<div class="float-icon">🎧</div>
-<div class="float-icon">🌟</div>
-<div class="float-icon">💫</div>
 
 <div class="container">
     <div class="header">
         <span class="logo">🏢</span>
         <h1>ЗАРПЛАТА КЛУБ</h1>
         <p class="subtitle">🎵 Учёт зарплаты · Ставка <span>400</span> или <span>350</span> ₽/ч · Консержка <span>+1500 ₽</span></p>
+        
+        {% if session.get('user_id') is not none %}
+        <a href="/logout" class="logout-icon" title="Выйти">
+            <i class="fas fa-sign-out-alt"></i>
+        </a>
+        {% endif %}
     </div>
 
     {% if session.get('user_id') is none %}
     <!-- ВХОД -->
     <div class="card" style="border-left-color: #4facfe;">
-        <h3><span class="icon">🔐</span> Вход</h3>
+        <h3><span class="icon"><i class="fas fa-lock"></i></span> Вход</h3>
         <form method="POST" action="/login" class="form-group">
             <input type="text" name="name" placeholder="Имя" required style="flex:1;">
             <input type="password" name="password" placeholder="Пароль" required style="flex:1;">
-            <button type="submit" class="btn" style="background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">🚪 Войти</button>
+            <button type="submit" class="btn" style="background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"><i class="fas fa-sign-in-alt"></i> Войти</button>
         </form>
         {% if msg %}
         <div class="alert alert-danger">{{ msg }}</div>
@@ -696,45 +684,45 @@ HTML = '''
     
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:15px;">
         <div style="font-weight:700;font-size:18px;color:#333;">
-            👋 Добро пожаловать, <span style="color:#9d4edd;">{{ session.user_name }}</span>
+            <i class="fas fa-user" style="color:#9d4edd;"></i> 
+            <span style="color:#9d4edd;">{{ session.user_name }}</span>
             <span style="font-size:14px;color:#888;font-weight:400;margin-left:10px;">
-                {% if session.is_admin %}👑 Админ{% endif %}
+                {% if session.is_admin %}<i class="fas fa-crown" style="color:#ffd93d;"></i> Админ{% endif %}
             </span>
         </div>
-        <a href="/logout" class="logout-btn">🚪 Выйти</a>
     </div>
 
     <!-- ===== ГЛАВНОЕ МЕНЮ ===== -->
     {% if not current_section or current_section == 'main' %}
     <div class="main-menu">
         <a href="/section/employees" class="menu-card">
-            <span class="emoji">👥</span>
+            <span class="icon"><i class="fas fa-users"></i></span>
             <div class="title">Сотрудники</div>
             <div class="desc">Управление персоналом</div>
         </a>
         <a href="/section/events" class="menu-card events">
-            <span class="emoji">📅</span>
+            <span class="icon"><i class="fas fa-calendar-alt"></i></span>
             <div class="title">Мероприятия</div>
             <div class="desc">Календарь и события</div>
         </a>
         <a href="/section/hours" class="menu-card">
-            <span class="emoji">⏱</span>
+            <span class="icon"><i class="fas fa-clock"></i></span>
             <div class="title">Часы</div>
             <div class="desc">Все записи по дням</div>
         </a>
         <a href="/section/payments" class="menu-card">
-            <span class="emoji">💰</span>
+            <span class="icon"><i class="fas fa-money-bill-wave"></i></span>
             <div class="title">Выплаты</div>
             <div class="desc">Расчёт зарплаты</div>
         </a>
         <a href="/section/bonus" class="menu-card">
-            <span class="emoji">🎁</span>
+            <span class="icon"><i class="fas fa-gift"></i></span>
             <div class="title">Премии</div>
             <div class="desc">Управление премиями</div>
         </a>
         {% if session.is_admin %}
-        <a href="/section/add" class="menu-card">
-            <span class="emoji">➕</span>
+        <a href="/section/add" class="menu-card add">
+            <span class="icon"><i class="fas fa-plus-circle"></i></span>
             <div class="title">Добавить</div>
             <div class="desc">Новый сотрудник / часы</div>
         </a>
@@ -743,26 +731,26 @@ HTML = '''
 
     <!-- ДАШБОРД (статистика) -->
     <div class="card">
-        <h3><span class="icon">📊</span> Статистика месяца</h3>
+        <h3><span class="icon"><i class="fas fa-chart-bar"></i></span> Статистика месяца</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:15px;">
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">👥 Сотрудников</div>
+                <div style="font-size:12px;color:#888;"><i class="fas fa-users"></i> Сотрудников</div>
                 <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_employees }}</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">⏱ Всего часов</div>
+                <div style="font-size:12px;color:#888;"><i class="fas fa-clock"></i> Часов</div>
                 <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_hours|round(1) }}</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">💰 Зарплата</div>
+                <div style="font-size:12px;color:#888;"><i class="fas fa-ruble-sign"></i> Зарплата</div>
                 <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_salary|round(0) }} ₽</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">🥫 Консержек</div>
+                <div style="font-size:12px;color:#888;"><i class="fas fa-utensils"></i> Консержек</div>
                 <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_konserzhka }}</div>
             </div>
             <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;">💎 ИТОГО</div>
+                <div style="font-size:12px;color:#888;"><i class="fas fa-gem"></i> ИТОГО</div>
                 <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.grand_total|round(0) }} ₽</div>
             </div>
         </div>
@@ -770,7 +758,7 @@ HTML = '''
         <!-- График по сотрудникам -->
         {% if chart_data %}
         <div class="chart-container">
-            <h4 style="margin-bottom:10px;">Часы по сотрудникам</h4>
+            <h4 style="margin-bottom:10px;"><i class="fas fa-chart-simple" style="color:#9d4edd;"></i> Часы по сотрудникам</h4>
             {% for item in chart_data %}
             <div class="chart-bar">
                 <div class="bar-label">{{ item.name }}</div>
@@ -790,9 +778,9 @@ HTML = '''
     {% if current_section == 'employees' %}
     <!-- СОТРУДНИКИ -->
     <div class="card">
-        <h3><span class="icon">👥</span> Все сотрудники</h3>
+        <h3><span class="icon"><i class="fas fa-users"></i></span> Все сотрудники</h3>
         <p style="color:#888;margin-bottom:12px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
-        <a href="/" class="back-link">← На главную</a>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         {% if employees %}
         {% for emp in employees %}
         <div class="employee-card">
@@ -800,22 +788,22 @@ HTML = '''
                 {{ emp.name }}
             </div>
             <div class="stats">
-                ⏱ <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
-                🥫 <strong>{{ emp.month_konserzhka }}</strong> · 
-                💰 <strong>{{ emp.month_total|round(0) }}</strong> ₽
+                <i class="fas fa-clock" style="color:#9d4edd;"></i> <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
+                <i class="fas fa-utensils" style="color:#f6b93b;"></i> <strong>{{ emp.month_konserzhka }}</strong> · 
+                <i class="fas fa-ruble-sign" style="color:#6bcb77;"></i> <strong>{{ emp.month_total|round(0) }}</strong> ₽
             </div>
             <div class="actions">
                 {% if session.is_admin %}
                 <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')">
                     <input type="hidden" name="emp_id" value="{{ emp.id }}">
-                    <button type="submit" class="delete-btn" title="Удалить сотрудника">🗑️</button>
+                    <button type="submit" class="delete-btn" title="Удалить сотрудника"><i class="fas fa-trash"></i></button>
                 </form>
                 {% endif %}
             </div>
         </div>
         {% endfor %}
         {% else %}
-        <p style="text-align:center;color:#999;padding:20px;">😴 Нет сотрудников</p>
+        <p style="text-align:center;color:#999;padding:20px;"><i class="fas fa-face-frown"></i> Нет сотрудников</p>
         {% endif %}
     </div>
     {% endif %}
@@ -823,13 +811,13 @@ HTML = '''
     {% if current_section == 'events' %}
     <!-- МЕРОПРИЯТИЯ (КАЛЕНДАРЬ) -->
     <div class="card gold">
-        <h3><span class="icon">📅</span> Календарь мероприятий</h3>
-        <a href="/" class="back-link">← На главную</a>
+        <h3><span class="icon"><i class="fas fa-calendar-alt"></i></span> Календарь мероприятий</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         
         <div class="month-nav">
-            <button class="btn btn-sm" onclick="window.location.href='/section/events?month={{ prev_month }}'">◀</button>
-            <span class="month-title">{{ month_name }} {{ current_year }}</span>
-            <button class="btn btn-sm" onclick="window.location.href='/section/events?month={{ next_month }}'">▶</button>
+            <button class="btn btn-sm btn-purple" onclick="window.location.href='/section/events?month={{ prev_month }}'"><i class="fas fa-chevron-left"></i></button>
+            <span class="month-title">{{ month_name }}</span>
+            <button class="btn btn-sm btn-purple" onclick="window.location.href='/section/events?month={{ next_month }}'"><i class="fas fa-chevron-right"></i></button>
         </div>
         
         <div class="calendar-grid">
@@ -850,7 +838,7 @@ HTML = '''
                 </div>
                 {% endif %}
                 {% if session.is_admin %}
-                <div class="add-event-btn" onclick="addEvent('{{ day.date_str }}')">+</div>
+                <div class="add-event-btn" onclick="addEvent('{{ day.date_str }}')"><i class="fas fa-plus-circle"></i></div>
                 {% endif %}
             </div>
             {% endfor %}
@@ -859,35 +847,35 @@ HTML = '''
         <!-- Добавление события -->
         {% if session.is_admin %}
         <div style="margin-top:15px;padding-top:15px;border-top:1px solid #eee;">
-            <h4>Добавить мероприятие</h4>
+            <h4><i class="fas fa-plus-circle" style="color:#9d4edd;"></i> Добавить мероприятие</h4>
             <form method="POST" action="/add_event" class="form-group">
                 <input type="date" name="event_date" value="{{ today }}" required>
                 <input type="text" name="title" placeholder="Название" required>
                 <input type="text" name="description" placeholder="Описание">
-                <button type="submit" class="btn btn-gold">➕ Добавить</button>
+                <button type="submit" class="btn btn-gold"><i class="fas fa-plus"></i> Добавить</button>
             </form>
         </div>
         {% endif %}
         
         <!-- Список всех событий -->
         <div class="events-list">
-            <h4 style="margin:15px 0 10px;">Все события месяца</h4>
+            <h4 style="margin:15px 0 10px;"><i class="fas fa-list" style="color:#9d4edd;"></i> Все события месяца</h4>
             {% if events %}
             {% for event in events %}
             <div class="event-item">
-                <span class="event-date">{{ event.date_ru }}</span>
+                <span class="event-date"><i class="far fa-calendar"></i> {{ event.date_ru }}</span>
                 <span class="event-title">{{ event.title }}</span>
                 <span style="font-size:13px;color:#888;">{{ event.description or '' }}</span>
                 {% if session.is_admin %}
                 <form method="POST" action="/delete_event" style="display:inline;" onsubmit="return confirm('Удалить мероприятие?')">
                     <input type="hidden" name="event_id" value="{{ event.id }}">
-                    <button type="submit" class="delete-event" title="Удалить">🗑️</button>
+                    <button type="submit" class="delete-event" title="Удалить"><i class="fas fa-trash"></i></button>
                 </form>
                 {% endif %}
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:#999;text-align:center;padding:10px;">📭 Нет событий на этот месяц</p>
+            <p style="color:#999;text-align:center;padding:10px;"><i class="far fa-calendar-alt"></i> Нет событий на этот месяц</p>
             {% endif %}
         </div>
     </div>
@@ -896,12 +884,12 @@ HTML = '''
     {% if current_section == 'hours' %}
     <!-- ЧАСЫ -->
     <div class="card pink">
-        <h3><span class="icon">⏱</span> Все часы по дням</h3>
-        <a href="/" class="back-link">← На главную</a>
+        <h3><span class="icon"><i class="fas fa-clock"></i></span> Все часы по дням</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-selector">
             <form method="GET" action="/section/hours" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
-                <button type="submit" class="btn btn-purple btn-sm">Показать</button>
+                <button type="submit" class="btn btn-purple btn-sm"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
         {% if all_logs %}
@@ -914,17 +902,19 @@ HTML = '''
                     <td><span class="badge badge-purple">{{ log.employee }}</span></td>
                     <td>{{ log.hours }}</td>
                     <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
-                    <td>{% if log.konserzhka %}🥫 +1500 ₽{% else %}—{% endif %}</td>
+                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500 ₽{% else %}—{% endif %}</td>
                     <td><strong>{{ log.total }} ₽</strong></td>
                 </tr>
                 {% endfor %}
             </table>
         </div>
+        {% if session.is_admin %}
         <div style="margin-top:10px;">
-            <a href="/export?month={{ selected_month }}" class="btn btn-green">📤 Скачать Excel</a>
+            <a href="/export?month={{ selected_month }}" class="btn btn-green"><i class="fas fa-file-excel"></i> Скачать Excel</a>
         </div>
+        {% endif %}
         {% else %}
-        <p style="text-align:center;color:#999;padding:20px;">📭 Нет записей</p>
+        <p style="text-align:center;color:#999;padding:20px;"><i class="fas fa-inbox"></i> Нет записей</p>
         {% endif %}
     </div>
     {% endif %}
@@ -932,17 +922,17 @@ HTML = '''
     {% if current_section == 'payments' %}
     <!-- ВЫПЛАТЫ -->
     <div class="card gold">
-        <h3><span class="icon">📅</span> Выплаты по периодам (1–15 и 16–конец)</h3>
-        <a href="/" class="back-link">← На главную</a>
+        <h3><span class="icon"><i class="fas fa-money-bill-wave"></i></span> Выплаты по периодам</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-selector">
             <form method="GET" action="/section/payments" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
-                <button type="submit" class="btn btn-purple btn-sm">Показать</button>
+                <button type="submit" class="btn btn-purple btn-sm"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
         
         <div class="period-group">
-            <h4 class="first">📆 1–15 число (АВАНС)</h4>
+            <h4 class="first"><i class="fas fa-hand-holding-usd"></i> 1–15 число (АВАНС)</h4>
             {% if payments.first %}
             <div class="table-wrapper">
                 <table>
@@ -953,12 +943,12 @@ HTML = '''
                         <td><span class="badge badge-purple">{{ p.employee }}</span></td>
                         <td>{{ p.hours }}</td>
                         <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
-                        <td>{% if p.konserzhka %}🥫 +1500{% else %}—{% endif %}</td>
+                        <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500{% else %}—{% endif %}</td>
                         <td><strong>{{ p.total }} ₽</strong></td>
                     </tr>
                     {% endfor %}
                     <tr class="total-row">
-                        <td colspan="5"><strong>ИТОГО за период (АВАНС)</strong></td>
+                        <td colspan="5"><strong>ИТОГО (АВАНС)</strong></td>
                         <td><strong>{{ payments.first_total|round(0) }} ₽</strong></td>
                     </tr>
                 </table>
@@ -969,7 +959,7 @@ HTML = '''
         </div>
         
         <div class="period-group">
-            <h4 class="second">📆 16–конец месяца (ОКОНЧАТЕЛЬНЫЙ)</h4>
+            <h4 class="second"><i class="fas fa-hand-holding-usd"></i> 16–конец месяца (ОКОНЧАТЕЛЬНЫЙ)</h4>
             {% if payments.second %}
             <div class="table-wrapper">
                 <table>
@@ -980,12 +970,12 @@ HTML = '''
                         <td><span class="badge badge-purple">{{ p.employee }}</span></td>
                         <td>{{ p.hours }}</td>
                         <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
-                        <td>{% if p.konserzhka %}🥫 +1500{% else %}—{% endif %}</td>
+                        <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500{% else %}—{% endif %}</td>
                         <td><strong>{{ p.total }} ₽</strong></td>
                     </tr>
                     {% endfor %}
                     <tr class="total-row">
-                        <td colspan="5"><strong>ИТОГО за период (ОКОНЧАТЕЛЬНЫЙ)</strong></td>
+                        <td colspan="5"><strong>ИТОГО (ОКОНЧАТЕЛЬНЫЙ)</strong></td>
                         <td><strong>{{ payments.second_total|round(0) }} ₽</strong></td>
                     </tr>
                 </table>
@@ -1000,8 +990,8 @@ HTML = '''
     {% if current_section == 'bonus' %}
     <!-- ПРЕМИИ -->
     <div class="card" style="border-left-color: #ffd93d;">
-        <h3><span class="icon">🎁</span> Премии</h3>
-        <a href="/" class="back-link">← На главную</a>
+        <h3><span class="icon"><i class="fas fa-gift"></i></span> Премии</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         {% if session.is_admin %}
         <form method="POST" action="/add_bonus" class="form-group" style="margin-bottom:15px;">
             <select name="emp_id" required>
@@ -1013,7 +1003,7 @@ HTML = '''
             <input type="number" name="amount" placeholder="Сумма ₽" step="0.1" required>
             <input type="text" name="description" placeholder="Описание">
             <input type="date" name="payment_date" value="{{ today }}">
-            <button type="submit" class="btn" style="background:linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%);color:#333;">🎁 Добавить</button>
+            <button type="submit" class="btn" style="background:linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%);color:#333;"><i class="fas fa-plus"></i> Добавить</button>
         </form>
         {% endif %}
         {% if all_bonuses %}
@@ -1031,7 +1021,7 @@ HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:#999;">🎁 Пока нет премий</p>
+        <p style="color:#999;"><i class="fas fa-gift"></i> Пока нет премий</p>
         {% endif %}
     </div>
     {% endif %}
@@ -1039,17 +1029,17 @@ HTML = '''
     {% if current_section == 'add' and session.is_admin %}
     <!-- ДОБАВИТЬ -->
     <div class="card green">
-        <h3><span class="icon">👤</span> Новый сотрудник</h3>
-        <a href="/" class="back-link">← На главную</a>
+        <h3><span class="icon"><i class="fas fa-user-plus"></i></span> Новый сотрудник</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <form method="POST" action="/add_employee" class="form-group">
             <input type="text" name="name" placeholder="Имя" required>
             <input type="password" name="password" placeholder="Пароль" required>
-            <button type="submit" class="btn btn-green">➕ Добавить</button>
+            <button type="submit" class="btn btn-green"><i class="fas fa-plus"></i> Добавить</button>
         </form>
     </div>
     
     <div class="card" style="border-left-color: #6bcb77;">
-        <h3><span class="icon">⏱</span> Добавить часы сотруднику</h3>
+        <h3><span class="icon"><i class="fas fa-clock"></i></span> Добавить часы сотруднику</h3>
         <form method="POST" action="/add_hours" class="form-group">
             <select name="emp_id" required style="flex:1;">
                 <option value="">Выберите сотрудника</option>
@@ -1065,9 +1055,9 @@ HTML = '''
             </select>
             <label style="white-space:nowrap;">
                 <input type="checkbox" name="konserzhka" value="1">
-                🥫 Консержка (+1500)
+                <i class="fas fa-utensils" style="color:#f6b93b;"></i> Консержка (+1500)
             </label>
-            <button type="submit" class="btn btn-green">⏱ Добавить</button>
+            <button type="submit" class="btn btn-green"><i class="fas fa-plus"></i> Добавить</button>
         </form>
     </div>
     {% endif %}
@@ -1122,8 +1112,9 @@ EMPLOYEE_HTML = '''
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>👤 {{ employee.name }} — Зарплата Клуб</title>
+    <title>{{ employee.name }} — Зарплата Клуб</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -1277,14 +1268,6 @@ EMPLOYEE_HTML = '''
         .rate-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
         .rate-badge.r400 { background: #d4edda; color: #155724; }
         .rate-badge.r350 { background: #fff3cd; color: #856404; }
-        .konserzhka-badge {
-            background: #ffd93d30;
-            color: #856404;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 700;
-        }
         .total-row {
             background: #f0edff !important;
             font-weight: 700;
@@ -1307,24 +1290,24 @@ EMPLOYEE_HTML = '''
 <body>
 <div class="container">
     <div class="header">
-        <h1>👤 {{ employee.name }}</h1>
-        <a href="/" class="back-link">← Назад</a>
+        <h1><i class="fas fa-user" style="color:#9d4edd;"></i> {{ employee.name }}</h1>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Назад</a>
     </div>
 
     <div class="stats-grid">
-        <div class="stat-card"><span class="icon">⏱</span><div class="number">{{ total_hours|round(1) }}</div><div class="label">Часов</div></div>
-        <div class="stat-card"><span class="icon">💰</span><div class="number">{{ total_salary|round(0) }} ₽</div><div class="label">По часам</div></div>
-        <div class="stat-card"><span class="icon">🥫</span><div class="number">{{ total_konserzhka }}</div><div class="label">Консержек</div></div>
-        <div class="stat-card"><span class="icon">🎁</span><div class="number">{{ total_bonus|round(0) }} ₽</div><div class="label">Премии</div></div>
-        <div class="stat-card"><span class="icon">💎</span><div class="number">{{ grand_total|round(0) }} ₽</div><div class="label">ИТОГО</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ total_hours|round(1) }}</div><div class="label">Часов</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ total_salary|round(0) }} ₽</div><div class="label">По часам</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ total_konserzhka }}</div><div class="label">Консержек</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-gift"></i></span><div class="number">{{ total_bonus|round(0) }} ₽</div><div class="label">Премии</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ grand_total|round(0) }} ₽</div><div class="label">ИТОГО</div></div>
     </div>
 
     <div class="card">
-        <h3>📅 Детали по дням</h3>
+        <h3><i class="fas fa-calendar-day" style="color:#9d4edd;"></i> Детали по дням</h3>
         <div class="month-selector">
             <form method="GET" action="/employee/{{ employee.id }}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
-                <button type="submit" class="btn btn-purple">Показать</button>
+                <button type="submit" class="btn btn-purple"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
         {% if logs %}
@@ -1336,7 +1319,7 @@ EMPLOYEE_HTML = '''
                     <td>{{ log.date_ru }}</td>
                     <td>{{ log.hours }}</td>
                     <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
-                    <td>{% if log.konserzhka %}🥫 +1500 ₽{% else %}—{% endif %}</td>
+                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500 ₽{% else %}—{% endif %}</td>
                     <td><strong>{{ log.total }} ₽</strong></td>
                 </tr>
                 {% endfor %}
@@ -1350,12 +1333,12 @@ EMPLOYEE_HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:#999;">📭 Нет записей за этот месяц</p>
+        <p style="color:#999;"><i class="fas fa-inbox"></i> Нет записей за этот месяц</p>
         {% endif %}
     </div>
 
     <div class="card" style="border-left-color: #ffd93d;">
-        <h3>🎁 Премии</h3>
+        <h3><i class="fas fa-gift" style="color:#ffd93d;"></i> Премии</h3>
         {% if bonuses %}
         <div class="table-wrapper">
             <table>
@@ -1370,7 +1353,7 @@ EMPLOYEE_HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:#999;">🎁 Нет премий</p>
+        <p style="color:#999;"><i class="fas fa-gift"></i> Нет премий</p>
         {% endif %}
     </div>
 
@@ -1401,7 +1384,6 @@ def index():
     payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
     chart_data = []
     
-    # Мероприятия
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
     events = []
     for ev in events_raw:
@@ -1415,7 +1397,6 @@ def index():
     
     if session.get('is_admin'):
         employees_raw = conn.execute("SELECT id, name FROM employees").fetchall()
-        
         max_hours = 0
         for emp in employees_raw:
             rows_month = conn.execute(
@@ -1425,13 +1406,11 @@ def index():
             month_hours = sum(r[0] for r in rows_month)
             month_salary = sum(r[0] * r[1] for r in rows_month)
             month_konserzhka = sum(1500 for r in rows_month if r[2] == 1)
-            
             bonus_month = conn.execute(
                 "SELECT amount FROM fixed_payments WHERE employee_id=? AND payment_date LIKE ?",
                 (emp[0], month + "%")
             ).fetchall()
             month_bonus = sum(b[0] for b in bonus_month)
-            
             emp_data = {
                 'id': emp[0],
                 'name': emp[1],
@@ -1445,7 +1424,6 @@ def index():
             if month_hours > max_hours:
                 max_hours = month_hours
         
-        # Данные для графика
         if max_hours > 0:
             for emp in employees:
                 percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
@@ -1547,7 +1525,6 @@ def index():
     calendar_days = []
     month_name_ru = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][month_num - 1]
     
-    # Получаем события для календаря
     events_by_date = {}
     for ev in events_raw:
         events_by_date[ev[1]] = ev
@@ -1555,7 +1532,6 @@ def index():
     first_weekday = days_in_month[0].weekday()
     start_offset = (first_weekday - 0) % 7
     
-    # Пустые дни в начале
     for i in range(start_offset):
         calendar_days.append({'day': '', 'is_weekend': False, 'is_today': False, 'event': None, 'date_str': ''})
     
@@ -1572,7 +1548,6 @@ def index():
             'date_str': date_str
         })
     
-    # Навигация по месяцам
     prev_month_date = date(year, month_num, 1) - timedelta(days=1)
     next_month_date = date(year, month_num, 1) + timedelta(days=32)
     prev_month = prev_month_date.strftime('%Y-%m')
@@ -1620,7 +1595,6 @@ def section(section):
     chart_data = []
     events = []
     
-    # Мероприятия
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
     for ev in events_raw:
         events.append({
@@ -1642,13 +1616,11 @@ def section(section):
             month_hours = sum(r[0] for r in rows_month)
             month_salary = sum(r[0] * r[1] for r in rows_month)
             month_konserzhka = sum(1500 for r in rows_month if r[2] == 1)
-            
             bonus_month = conn.execute(
                 "SELECT amount FROM fixed_payments WHERE employee_id=? AND payment_date LIKE ?",
                 (emp[0], month + "%")
             ).fetchall()
             month_bonus = sum(b[0] for b in bonus_month)
-            
             emp_data = {
                 'id': emp[0],
                 'name': emp[1],
@@ -1957,7 +1929,9 @@ def add_employee():
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
-    return redirect(url_for('index', msg=msg))
+    
+    # Возвращаемся в тот же раздел, а не на главную
+    return redirect(url_for('section', section='add', msg=msg))
 
 @app.route('/delete_employee', methods=['POST'])
 def delete_employee():
@@ -1975,7 +1949,7 @@ def delete_employee():
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
-    return redirect(url_for('index', msg=msg))
+    return redirect(url_for('section', section='employees', msg=msg))
 
 @app.route('/add_event', methods=['POST'])
 def add_event():
@@ -1997,7 +1971,7 @@ def add_event():
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
-    return redirect(url_for('index', msg=msg))
+    return redirect(url_for('section', section='events', msg=msg))
 
 @app.route('/delete_event', methods=['POST'])
 def delete_event():
@@ -2013,7 +1987,7 @@ def delete_event():
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
-    return redirect(url_for('index', msg=msg))
+    return redirect(url_for('section', section='events', msg=msg))
 
 @app.route('/add_hours', methods=['POST'])
 def add_hours():
@@ -2054,7 +2028,7 @@ def add_hours():
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     
-    return redirect(url_for('index', msg=msg))
+    return redirect(url_for('section', section='add', msg=msg))
 
 @app.route('/add_bonus', methods=['POST'])
 def add_bonus():
@@ -2090,12 +2064,16 @@ def add_bonus():
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     
-    return redirect(url_for('index', msg=msg))
+    return redirect(url_for('section', section='bonus', msg=msg))
 
 @app.route('/export')
 def export():
     if session.get('user_id') is None:
         return redirect(url_for('index', msg='Войдите в систему!'))
+    
+    # Экспорт только для админа
+    if not session.get('is_admin'):
+        return redirect(url_for('index', msg='Только администратор может экспортировать данные!'))
     
     month = request.args.get('month', date.today().strftime('%Y-%m'))
     
