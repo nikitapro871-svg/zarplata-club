@@ -6,9 +6,6 @@ import io
 import csv
 import base64
 import random
-import json
-import requests
-import urllib.parse
 
 app = Flask(__name__)
 app.secret_key = 'zarplata_club_secret_2024'
@@ -81,81 +78,75 @@ def get_month_days(year, month):
         last_day = date(year, month + 1, 1) - timedelta(days=1)
     return [date(year, month, d) for d in range(1, last_day.day + 1)]
 
-# === AI-ПОМОЩНИК (УМНЫЙ) ===
-def generate_ai_response(question, conn, employee_id=None):
-    question_lower = question.lower()
-
-    # Сначала проверяем, есть ли данные для анализа
+# === AI-ПОМОЩНИК (ВНУТРЕННИЙ, ТОЛЬКО ДЛЯ АДМИНА) ===
+def generate_ai_insights(conn, employee_id=None):
+    insights = []
+    
     if employee_id:
-        logs = conn.execute("SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=?", (employee_id,)).fetchall()
+        logs = conn.execute("SELECT hours, rate, konserzhka, work_date FROM hours_log WHERE employee_id=? ORDER BY work_date", (employee_id,)).fetchall()
         bonuses = conn.execute("SELECT amount FROM fixed_payments WHERE employee_id=?", (employee_id,)).fetchall()
         emp = conn.execute("SELECT name FROM employees WHERE id=?", (employee_id,)).fetchone()
         name = emp[0] if emp else 'Сотрудник'
     else:
-        logs = conn.execute("SELECT hours, rate, konserzhka FROM hours_log").fetchall()
+        logs = conn.execute("SELECT hours, rate, konserzhka, work_date FROM hours_log ORDER BY work_date").fetchall()
         bonuses = conn.execute("SELECT amount FROM fixed_payments").fetchall()
         name = 'Все сотрудники'
-
-    total_hours = sum(l[0] for l in logs) if logs else 0
-    total_salary = sum(l[0] * l[1] for l in logs) if logs else 0
-    total_konserzhka = sum(1500 for l in logs if l[2] == 1) if logs else 0
-    total_bonus = sum(b[0] for b in bonuses) if bonuses else 0
+    
+    if not logs:
+        insights.append("📊 Нет данных для анализа. Начните добавлять часы!")
+        return insights
+    
+    total_hours = sum(l[0] for l in logs)
+    total_salary = sum(l[0] * l[1] for l in logs)
+    total_konserzhka = sum(1500 for l in logs if l[2] == 1)
+    total_bonus = sum(b[0] for b in bonuses)
     total = total_salary + total_konserzhka + total_bonus
-    days_worked = len(set(l[3] for l in logs)) if logs else 0
-
-    # Если вопрос про данные
-    if 'часы' in question_lower or 'зарплат' in question_lower or 'сколько' in question_lower or 'заработал' in question_lower:
-        if total_hours > 0:
-            return f"📊 {name} отработал {total_hours} часов за {days_worked} дней. Зарплата: {total} ₽ (включая {total_konserzhka} ₽ консержки и {total_bonus} ₽ премий)."
+    days_worked = len(set(l[3] for l in logs))
+    
+    insights.append(f"📈 {name} отработал {total_hours} часов за {days_worked} дней.")
+    insights.append(f"💰 Общая зарплата: {total} ₽ (из них {total_konserzhka} ₽ консержки и {total_bonus} ₽ премий).")
+    
+    if total_hours > 0 and days_worked > 0:
+        avg_hours = total_hours / days_worked
+        insights.append(f"⏱ Среднее количество часов в день: {avg_hours:.1f} ч.")
+    
+    today = date.today()
+    current_month = today.strftime('%Y-%m')
+    last_month = (today.replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+    
+    current_logs = [l for l in logs if l[3].startswith(current_month)]
+    last_logs = [l for l in logs if l[3].startswith(last_month)]
+    
+    current_hours = sum(l[0] for l in current_logs)
+    last_hours = sum(l[0] for l in last_logs)
+    
+    if last_hours > 0:
+        change = ((current_hours - last_hours) / last_hours) * 100
+        if change > 5:
+            insights.append(f"📈 Часы выросли на {change:.0f}% по сравнению с прошлым месяцем! Отличная работа!")
+        elif change < -5:
+            insights.append(f"📉 Часы упали на {abs(change):.0f}% по сравнению с прошлым месяцем. Возможно, стоит обратить внимание.")
         else:
-            return f"📊 У {name} пока нет записей о часах. Начните добавлять часы!"
-
-    if 'премия' in question_lower or 'бонус' in question_lower:
-        return f"🎁 {name} получил {total_bonus} ₽ премий."
-
-    if 'консержк' in question_lower:
-        return f"🥫 {name} получил {total_konserzhka} ₽ консержек."
-
-    if 'мероприятие' in question_lower or 'событие' in question_lower:
-        events = conn.execute("SELECT title, event_date FROM events ORDER BY event_date DESC LIMIT 3").fetchall()
-        if events:
-            return "📅 Последние мероприятия:\n" + "\n".join([f"• {e[0]} ({format_date_ru(e[1])})" for e in events])
-        else:
-            return "📅 Мероприятий пока нет."
-
-    if 'сотрудник' in question_lower or 'коллег' in question_lower:
-        employees = conn.execute("SELECT name FROM employees").fetchall()
-        if employees:
-            return "👥 Список сотрудников:\n" + "\n".join([f"• {e[0]}" for e in employees])
-        else:
-            return "👥 Нет сотрудников."
-
-    # Если вопрос про общие темы — используем внешний AI (бесплатный API)
-    try:
-        # Отправляем запрос к бесплатному AI-API
-        url = "https://api.mistral.ai/v1/chat/completions"
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer "  # Можно использовать бесплатный ключ
-        }
-        data = {
-            "model": "mistral-tiny",
-            "messages": [{"role": "user", "content": question}]
-        }
-        response = requests.post(url, json=data, headers=headers, timeout=5)
-        if response.status_code == 200:
-            return response.json()["choices"][0]["message"]["content"]
-    except:
-        pass
-
-    # Если AI не ответил — используем локальный умный ответ
-    responses = [
-        "🤔 Хороший вопрос! Я AI-помощник. Спроси меня о часах, зарплате, премиях, консержках, мероприятиях или сотрудниках!",
-        "💡 Интересно! Я могу помочь с анализом данных по зарплате. Спроси меня о чём-то конкретном.",
-        "📊 У меня есть доступ к данным о часах и зарплате. Что тебя интересует?",
-        "🎯 Отличная идея! Я могу подсказать, как улучшить учёт рабочего времени."
-    ]
-    return random.choice(responses)
+            insights.append(f"📊 Часы остались примерно на уровне прошлого месяца ({change:.0f}%).")
+    else:
+        insights.append("📊 Это первый месяц работы. Отличный старт!")
+    
+    if total_hours > 150:
+        insights.append(f"🔥 {name} отработал более 150 часов — это рекордный результат!")
+    elif total_hours < 20 and total_hours > 0:
+        insights.append(f"⚠️ {name} отработал всего {total_hours} часов. Возможно, стоит проверить, не пропущены ли записи.")
+    
+    if total_konserzhka > 5000:
+        insights.append(f"🥫 Большое количество консержек ({total_konserzhka} ₽).")
+    
+    if total_bonus > 10000:
+        insights.append(f"🎁 Высокая сумма премий ({total_bonus} ₽). Отличная мотивация!")
+    
+    if total_hours > 0:
+        avg_rate = total_salary / total_hours if total_hours > 0 else 0
+        insights.append(f"💡 Средняя ставка: {avg_rate:.1f} ₽/ч.")
+    
+    return insights
 
 # === HTML ===
 HTML = '''
@@ -365,6 +356,7 @@ HTML = '''
         .card.blue { border-left: 3px solid #60a5fa; }
         .card.purple { border-left: 3px solid #9d4edd; }
         .card.top { border-left: 3px solid #ffd93d; }
+        .card.ai-card { border-left: 3px solid #60a5fa; background: rgba(96,165,250,0.03); }
         .form-group {
             display: flex;
             gap: 12px;
@@ -504,12 +496,14 @@ HTML = '''
             border: 1px solid rgba(255,255,255,0.04);
             transition: 0.3s;
             color: #fff;
+            cursor: pointer;
         }
         .employee-card:hover {
             border-color: rgba(157,78,221,0.2);
             background: rgba(255,255,255,0.05);
         }
-        .employee-avatar {
+        .employee-card .employee-info { display: flex; align-items: center; flex: 1; }
+        .employee-card .employee-avatar {
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -517,7 +511,7 @@ HTML = '''
             margin-right: 12px;
             border: 2px solid rgba(192,132,252,0.2);
         }
-        .employee-avatar-placeholder {
+        .employee-card .employee-avatar-placeholder {
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -529,11 +523,11 @@ HTML = '''
             color: rgba(255,255,255,0.3);
             font-size: 16px;
         }
-        .employee-info { display: flex; align-items: center; flex: 1; cursor: pointer; }
-        .employee-name { font-weight: 600; }
-        .employee-position { margin-left: 10px; }
-        .employee-stats { color: rgba(255,255,255,0.4); font-size: 13px; margin-left: 12px; }
-        .delete-btn {
+        .employee-card .employee-name { font-weight: 600; }
+        .employee-card .employee-position { margin-left: 10px; }
+        .employee-card .employee-stats { color: rgba(255,255,255,0.4); font-size: 13px; margin-left: 12px; }
+        .employee-card .actions { display: flex; gap: 6px; }
+        .employee-card .delete-btn {
             background: none;
             border: none;
             color: rgba(255,255,255,0.3);
@@ -542,7 +536,7 @@ HTML = '''
             transition: 0.3s;
             padding: 0 5px;
         }
-        .delete-btn:hover { color: #ff6b6b; transform: scale(1.2); }
+        .employee-card .delete-btn:hover { color: #ff6b6b; transform: scale(1.2); }
         .chat-message { padding: 10px 14px; border-radius: 14px; margin-bottom: 8px; max-width: 80%; word-wrap: break-word; }
         .chat-message.outgoing { background: rgba(192,132,252,0.15); border: 1px solid rgba(192,132,252,0.2); margin-left: auto; color: #c084fc; }
         .chat-message.incoming { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.06); color: #fff; }
@@ -553,39 +547,25 @@ HTML = '''
         .chat-input { display: flex; gap: 10px; align-items: center; }
         .chat-input input { flex: 1; }
         .chat-messages { max-height: 400px; overflow-y: auto; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); }
-        .ai-chat {
+        .ai-container {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
-        .ai-chat .ai-messages {
-            max-height: 350px;
-            overflow-y: auto;
-            padding: 12px;
-            background: rgba(255,255,255,0.03);
+        .ai-container .ai-insights {
+            background: rgba(96,165,250,0.05);
             border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.04);
+            padding: 16px;
+            border: 1px solid rgba(96,165,250,0.08);
         }
-        .ai-chat .ai-message {
-            padding: 10px 14px;
-            border-radius: 14px;
-            margin-bottom: 8px;
-            max-width: 90%;
-            background: rgba(96,165,250,0.08);
-            border: 1px solid rgba(96,165,250,0.1);
+        .ai-container .ai-insight {
+            padding: 8px 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            font-size: 14px;
             color: #fff;
         }
-        .ai-chat .ai-message.user {
-            margin-left: auto;
-            background: rgba(192,132,252,0.08);
-            border: 1px solid rgba(192,132,252,0.1);
-        }
-        .ai-chat .ai-input {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .ai-chat .ai-input input { flex: 1; }
+        .ai-container .ai-insight:last-child { border-bottom: none; }
+        .ai-container .ai-insight i { margin-right: 8px; }
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
@@ -688,7 +668,6 @@ HTML = '''
             margin-top: 2px;
         }
         .calendar-day .add-event-btn:hover { color: #c084fc; }
-        /* Мероприятия: отдельные плашки */
         .events-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -886,11 +865,13 @@ HTML = '''
     </div>
     {% if not current_section or current_section == 'main' %}
     <div class="main-menu">
+        {% if session.is_admin %}
         <a href="/section/ai" class="menu-card ai">
             <span class="icon"><i class="fas fa-brain"></i></span>
             <div class="title">AI-помощник</div>
-            <div class="desc">Чат с аналитикой</div>
+            <div class="desc">Аналитика и советы</div>
         </a>
+        {% endif %}
         <a href="/section/chat" class="menu-card">
             <span class="icon"><i class="fas fa-comments"></i></span>
             <div class="title">Чат</div>
@@ -950,12 +931,12 @@ HTML = '''
         </div>
     </div>
     {% endif %}
-    <!-- ===== AI ===== -->
-    {% if current_section == 'ai' %}
-    <div class="card" style="border-left: 3px solid #60a5fa;">
-        <h3><span class="icon"><i class="fas fa-brain" style="color:#60a5fa;"></i></span> AI-помощник (чат)</h3>
+    <!-- ===== AI-ПОМОЩНИК (ТОЛЬКО ДЛЯ АДМИНА) ===== -->
+    {% if current_section == 'ai' and session.is_admin %}
+    <div class="card ai-card">
+        <h3><span class="icon"><i class="fas fa-brain" style="color:#60a5fa;"></i></span> AI-помощник</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
-        <div style="margin-bottom:12px;">
+        <div style="margin-bottom:16px;">
             <form method="GET" action="/section/ai" class="form-group">
                 <select name="emp_id" style="flex:0 0 auto;min-width:200px;">
                     <option value="">Все сотрудники</option>
@@ -963,26 +944,21 @@ HTML = '''
                     <option value="{{ emp.id }}" {% if request.args.get('emp_id')|int == emp.id %}selected{% endif %}>{{ emp.name }}</option>
                     {% endfor %}
                 </select>
-                <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-robot"></i> Выбрать</button>
+                <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-robot"></i> Анализировать</button>
             </form>
         </div>
-        <div class="ai-chat">
-            <div class="ai-messages" id="aiMessages">
-                {% for msg in ai_chat_history %}
-                <div class="ai-message {% if msg.type == 'user' %}user{% else %}ai{% endif %}">
-                    <div>{{ msg.text }}</div>
+        <div class="ai-container">
+            <div class="ai-insights">
+                {% for insight in ai_insights %}
+                <div class="ai-insight">
+                    <i class="fas fa-robot" style="color:#60a5fa;"></i> {{ insight }}
                 </div>
                 {% else %}
-                <div class="ai-message ai">
-                    <div>🤖 Привет! Я AI-помощник. Спроси меня о часах, зарплате, премиях, консержках, мероприятиях, сотрудниках — или просто о чём угодно!</div>
+                <div class="ai-insight" style="color:rgba(255,255,255,0.4);">
+                    <i class="fas fa-robot"></i> Нет данных для анализа. Начните добавлять часы!
                 </div>
                 {% endfor %}
             </div>
-            <form method="POST" action="/ai_chat" class="ai-input">
-                <input type="text" name="question" placeholder="Напиши свой вопрос..." required>
-                <input type="hidden" name="emp_id" value="{{ request.args.get('emp_id', '') }}">
-                <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-paper-plane"></i> Спросить</button>
-            </form>
         </div>
     </div>
     {% endif %}
@@ -1065,10 +1041,10 @@ HTML = '''
         {% endif %}
     </div>
     {% endif %}
-    <!-- ===== ЧАСЫ (только свои) ===== -->
+    <!-- ===== ЧАСЫ ===== -->
     {% if current_section == 'hours' %}
     <div class="card pink">
-        <h3><span class="icon"><i class="fas fa-clock" style="color:#f472b6;"></i></span> Мои часы</h3>
+        <h3><span class="icon"><i class="fas fa-clock" style="color:#f472b6;"></i></span> Часы</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-selector">
             <form method="GET" action="/section/hours" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
@@ -1079,10 +1055,11 @@ HTML = '''
         {% if all_logs %}
         <div class="table-wrapper">
             <table>
-                <tr><th>Дата</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
+                <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
                 {% for log in all_logs %}
                 <tr>
                     <td>{{ log.date_ru }}</td>
+                    <td><span class="badge">{{ log.employee }}</span></td>
                     <td>{{ log.hours }}</td>
                     <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
                     <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500 ₽{% else %}—{% endif %}</td>
@@ -1101,10 +1078,10 @@ HTML = '''
         {% endif %}
     </div>
     {% endif %}
-    <!-- ===== ВЫПЛАТЫ (только свои) ===== -->
+    <!-- ===== ВЫПЛАТЫ ===== -->
     {% if current_section == 'payments' %}
     <div class="card green">
-        <h3><span class="icon"><i class="fas fa-money-bill-wave" style="color:#6bcb77;"></i></span> Мои выплаты</h3>
+        <h3><span class="icon"><i class="fas fa-money-bill-wave" style="color:#6bcb77;"></i></span> Выплаты</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-selector">
             <form method="GET" action="/section/payments" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
@@ -1117,10 +1094,11 @@ HTML = '''
             {% if payments.first %}
             <div class="table-wrapper">
                 <table>
-                    <tr><th>Дата</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
+                    <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
                     {% for p in payments.first %}
                     <tr>
                         <td>{{ p.date_ru }}</td>
+                        <td><span class="badge">{{ p.employee }}</span></td>
                         <td>{{ p.hours }}</td>
                         <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
                         <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500{% else %}—{% endif %}</td>
@@ -1128,7 +1106,7 @@ HTML = '''
                     </tr>
                     {% endfor %}
                     <tr class="total-row">
-                        <td colspan="4"><strong>ИТОГО (АВАНС)</strong></td>
+                        <td colspan="5"><strong>ИТОГО (АВАНС)</strong></td>
                         <td><strong>{{ payments.first_total|round(0) }} ₽</strong></td>
                     </tr>
                 </table>
@@ -1142,10 +1120,11 @@ HTML = '''
             {% if payments.second %}
             <div class="table-wrapper">
                 <table>
-                    <tr><th>Дата</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
+                    <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
                     {% for p in payments.second %}
                     <tr>
                         <td>{{ p.date_ru }}</td>
+                        <td><span class="badge">{{ p.employee }}</span></td>
                         <td>{{ p.hours }}</td>
                         <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
                         <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500{% else %}—{% endif %}</td>
@@ -1153,7 +1132,7 @@ HTML = '''
                     </tr>
                     {% endfor %}
                     <tr class="total-row">
-                        <td colspan="4"><strong>ИТОГО (ОКОНЧАТЕЛЬНЫЙ)</strong></td>
+                        <td colspan="5"><strong>ИТОГО (ОКОНЧАТЕЛЬНЫЙ)</strong></td>
                         <td><strong>{{ payments.second_total|round(0) }} ₽</strong></td>
                     </tr>
                 </table>
@@ -1164,7 +1143,7 @@ HTML = '''
         </div>
     </div>
     {% endif %}
-    <!-- ===== СОТРУДНИКИ ===== -->
+    <!-- ===== СОТРУДНИКИ (С УДАЛЕНИЕМ) ===== -->
     {% if current_section == 'employees' %}
     <div class="card green">
         <h3><span class="icon"><i class="fas fa-users"></i></span> Сотрудники</h3>
@@ -1176,8 +1155,8 @@ HTML = '''
         <div id="employeeList">
         {% if all_employees %}
         {% for emp in all_employees %}
-        <div class="employee-card" data-name="{{ emp.name|lower }}" onclick="window.location.href='/profile/{{ emp.id }}'" style="cursor:pointer;">
-            <div class="employee-info">
+        <div class="employee-card" data-name="{{ emp.name|lower }}">
+            <div class="employee-info" onclick="window.location.href='/profile/{{ emp.id }}'">
                 {% if emp.avatar %}
                 <img src="data:image/jpeg;base64,{{ emp.avatar }}" class="employee-avatar" alt="{{ emp.name }}">
                 {% else %}
@@ -1197,6 +1176,14 @@ HTML = '''
                 👤 Сотрудник
                 {% endif %}
             </div>
+            {% if session.is_admin %}
+            <div class="actions">
+                <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')" onclick="event.stopPropagation();">
+                    <input type="hidden" name="emp_id" value="{{ emp.id }}">
+                    <button type="submit" class="delete-btn" title="Удалить сотрудника"><i class="fas fa-trash"></i></button>
+                </form>
+            </div>
+            {% endif %}
         </div>
         {% endfor %}
         {% else %}
@@ -1205,10 +1192,10 @@ HTML = '''
         </div>
     </div>
     {% endif %}
-    <!-- ===== МЕРОПРИЯТИЯ ===== -->
+    <!-- ===== МЕРОПРИЯТИЯ (С УДАЛЕНИЕМ) ===== -->
     {% if current_section == 'events' %}
     <div class="card gold">
-        <h3><span class="icon"><i class="fas fa-calendar-alt" style="color:#fcd34d;"></i></span> Календарь мероприятий</h3>
+        <h3><span class="icon"><i class="fas fa-calendar-alt" style="color:#fcd34d;"></i></span> Мероприятия</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-nav">
             <button class="btn btn-sm btn-purple" onclick="window.location.href='/section/events?month={{ prev_month }}'"><i class="fas fa-chevron-left"></i></button>
@@ -1237,7 +1224,6 @@ HTML = '''
             </div>
             {% endfor %}
         </div>
-        <!-- ОТДЕЛЬНЫЕ ПЛАШКИ МЕРОПРИЯТИЙ -->
         <div style="margin-top:20px;">
             <h4 style="color:rgba(255,255,255,0.4);margin-bottom:12px;"><i class="fas fa-list" style="color:#fcd34d;"></i> События месяца</h4>
             <div class="events-list">
@@ -1596,8 +1582,6 @@ PROFILE_HTML = '''
         </div>
         {% endif %}
     </div>
-    <!-- ДОБАВЛЕНИЕ ДОЛЖНОСТИ (ВМЕСТО ТЕГОВ) -->
-    {% if session.user_id == user.id or session.is_admin %}
     <div style="margin:20px 0;padding:16px;background:rgba(255,255,255,0.03);border-radius:16px;border:1px solid rgba(255,255,255,0.04);">
         <h4 style="color:rgba(255,255,255,0.6);margin-bottom:10px;"><i class="fas fa-briefcase" style="color:#c084fc;"></i> Моя должность</h4>
         <form method="POST" action="/update_position" class="form-group">
@@ -1606,7 +1590,6 @@ PROFILE_HTML = '''
         </form>
         <p style="color:rgba(255,255,255,0.2);font-size:12px;margin-top:6px;">Напишите свою должность — она будет отображаться в списке сотрудников.</p>
     </div>
-    {% endif %}
     {% if can_view_stats %}
     <div class="stats-grid">
         <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ stats.total_hours|round(1) }}</div><div class="label">Часов</div></div>
@@ -1629,7 +1612,7 @@ PROFILE_HTML = '''
 @app.route('/')
 def index():
     if session.get('user_id') is None:
-        return render_template_string(HTML, session={}, all_employees=[], stats={}, audit_logs=[], chat_employees=[], chat_messages=[], chat_to_id=None, ai_chat_history=[], all_bonuses=[], all_logs=[], payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, top_employees=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', prev_month='', next_month='', calendar_days=[], events=[], msg=request.args.get('msg'))
+        return render_template_string(HTML, session={}, all_employees=[], stats={}, audit_logs=[], chat_employees=[], chat_messages=[], chat_to_id=None, ai_insights=[], all_bonuses=[], all_logs=[], payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, top_employees=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', prev_month='', next_month='', calendar_days=[], events=[], msg=request.args.get('msg'))
 
     conn = get_db()
     today = date.today()
@@ -1647,17 +1630,11 @@ def index():
     chat_employees = []
     chat_messages = []
     chat_to_id = None
-    ai_chat_history = session.get('ai_chat_history', [])
+    ai_insights = []
 
     employees_raw = conn.execute("SELECT id, name, avatar, is_admin, position FROM employees").fetchall()
     for emp in employees_raw:
-        emp_data = {
-            'id': emp[0],
-            'name': emp[1],
-            'avatar': emp[2] or '',
-            'is_admin': emp[3],
-            'position': emp[4] or ''
-        }
+        emp_data = {'id': emp[0], 'name': emp[1], 'avatar': emp[2] or '', 'is_admin': emp[3], 'position': emp[4] or ''}
         all_employees.append(emp_data)
         if emp[0] != session.get('user_id', -1):
             chat_employees.append({'id': emp[0], 'name': emp[1]})
@@ -1670,9 +1647,7 @@ def index():
     for b in bonuses_raw:
         all_bonuses.append({'date': b[0], 'date_ru': format_date_ru(b[0]), 'employee': b[1], 'amount': b[2], 'description': b[3]})
 
-    # Для сотрудника — только его часы и выплаты
     if session.get('is_admin'):
-        # Админ видит всё
         logs = conn.execute("SELECT h.work_date, e.name, h.hours, h.rate, h.konserzhka FROM hours_log h JOIN employees e ON h.employee_id=e.id WHERE h.work_date LIKE ? ORDER BY h.work_date DESC", (month + "%",)).fetchall()
         for log in logs:
             total = log[2] * log[3] + (1500 if log[4] == 1 else 0)
@@ -1682,7 +1657,6 @@ def index():
             payments[period].append({'date': log[0], 'date_ru': format_date_ru(log[0]), 'employee': log[1], 'hours': log[2], 'rate': log[3], 'konserzhka': log[4], 'total': total})
             payments[period + '_total'] = payments.get(period + '_total', 0) + total
     else:
-        # Сотрудник — только свои часы и выплаты
         emp_id = session['user_id']
         logs = conn.execute("SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC", (emp_id, month + "%")).fetchall()
         for log in logs:
@@ -1710,7 +1684,6 @@ def index():
             total_grand += month_salary + month_konserzhka
         stats = {'total_employees': total_emp, 'total_hours': total_hours, 'total_salary': total_salary, 'total_konserzhka': total_konserzhka, 'grand_total': total_grand}
 
-        # Топ сотрудников (для админа)
         top_raw = []
         for emp in employees_raw:
             logs_emp = conn.execute("SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ?", (emp[0], month + "%")).fetchall()
@@ -1720,15 +1693,16 @@ def index():
         max_top = top_raw[0]['total'] if top_raw else 1
         for emp in top_raw:
             emp['percent'] = (emp['total'] / max_top * 100) if max_top > 0 else 0
-            top_employees = top_raw[:10]  # Топ 10
+            top_employees = top_raw[:10]
 
         audit_raw = conn.execute("SELECT admin_name, action_type, action_details, action_date FROM audit_log ORDER BY id DESC LIMIT 100").fetchall()
         for a in audit_raw:
             audit_logs.append({'admin_name': a[0], 'action_type': a[1], 'action_details': a[2], 'date_ru': format_date_ru(a[3])})
+        
+        ai_insights = generate_ai_insights(conn)
     else:
         stats = {'total_employees': len(employees_raw), 'total_hours': 0, 'total_salary': 0, 'total_konserzhka': 0, 'grand_total': 0}
 
-    # Календарь
     year, month_num = map(int, month.split('-'))
     days_in_month = get_month_days(year, month_num)
     calendar_days = []
@@ -1743,13 +1717,7 @@ def index():
         is_weekend = d.weekday() >= 5
         is_today = date_str == today_str
         event = events_by_date.get(date_str)
-        calendar_days.append({
-            'day': d.day,
-            'is_weekend': is_weekend,
-            'is_today': is_today,
-            'event': {'title': event[2], 'description': event[3]} if event else None,
-            'date_str': date_str
-        })
+        calendar_days.append({'day': d.day, 'is_weekend': is_weekend, 'is_today': is_today, 'event': {'title': event[2], 'description': event[3]} if event else None, 'date_str': date_str})
     prev_month_date = date(year, month_num, 1) - timedelta(days=1)
     next_month_date = date(year, month_num, 1) + timedelta(days=32)
     prev_month = prev_month_date.strftime('%Y-%m')
@@ -1765,7 +1733,7 @@ def index():
         chat_employees=chat_employees,
         chat_messages=chat_messages,
         chat_to_id=chat_to_id,
-        ai_chat_history=ai_chat_history,
+        ai_insights=ai_insights,
         all_bonuses=all_bonuses,
         all_logs=all_logs,
         payments=payments,
@@ -1802,7 +1770,7 @@ def section(section):
     chat_employees = []
     chat_messages = []
     chat_to_id = None
-    ai_chat_history = session.get('ai_chat_history', [])
+    ai_insights = []
 
     employees_raw = conn.execute("SELECT id, name, avatar, is_admin, position FROM employees").fetchall()
     for emp in employees_raw:
@@ -1819,7 +1787,6 @@ def section(section):
     for b in bonuses_raw:
         all_bonuses.append({'date': b[0], 'date_ru': format_date_ru(b[0]), 'employee': b[1], 'amount': b[2], 'description': b[3]})
 
-    # Для сотрудника — только его часы и выплаты
     if session.get('is_admin'):
         logs = conn.execute("SELECT h.work_date, e.name, h.hours, h.rate, h.konserzhka FROM hours_log h JOIN employees e ON h.employee_id=e.id WHERE h.work_date LIKE ? ORDER BY h.work_date DESC", (month + "%",)).fetchall()
         for log in logs:
@@ -1857,7 +1824,6 @@ def section(section):
             total_grand += month_salary + month_konserzhka
         stats = {'total_employees': total_emp, 'total_hours': total_hours, 'total_salary': total_salary, 'total_konserzhka': total_konserzhka, 'grand_total': total_grand}
 
-        # Топ сотрудников
         top_raw = []
         for emp in employees_raw:
             logs_emp = conn.execute("SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ?", (emp[0], month + "%")).fetchall()
@@ -1872,6 +1838,8 @@ def section(section):
         audit_raw = conn.execute("SELECT admin_name, action_type, action_details, action_date FROM audit_log ORDER BY id DESC LIMIT 100").fetchall()
         for a in audit_raw:
             audit_logs.append({'admin_name': a[0], 'action_type': a[1], 'action_details': a[2], 'date_ru': format_date_ru(a[3])})
+        
+        ai_insights = generate_ai_insights(conn)
     else:
         stats = {'total_employees': len(employees_raw), 'total_hours': 0, 'total_salary': 0, 'total_konserzhka': 0, 'grand_total': 0}
 
@@ -1885,7 +1853,6 @@ def section(section):
             conn.execute("UPDATE messages SET is_read = 1 WHERE from_id = ? AND to_id = ?", (to_id, session['user_id']))
             conn.commit()
 
-    # Календарь
     year, month_num = map(int, month.split('-'))
     days_in_month = get_month_days(year, month_num)
     calendar_days = []
@@ -1900,13 +1867,7 @@ def section(section):
         is_weekend = d.weekday() >= 5
         is_today = date_str == today_str
         event = events_by_date.get(date_str)
-        calendar_days.append({
-            'day': d.day,
-            'is_weekend': is_weekend,
-            'is_today': is_today,
-            'event': {'title': event[2], 'description': event[3]} if event else None,
-            'date_str': date_str
-        })
+        calendar_days.append({'day': d.day, 'is_weekend': is_weekend, 'is_today': is_today, 'event': {'title': event[2], 'description': event[3]} if event else None, 'date_str': date_str})
     prev_month_date = date(year, month_num, 1) - timedelta(days=1)
     next_month_date = date(year, month_num, 1) + timedelta(days=32)
     prev_month = prev_month_date.strftime('%Y-%m')
@@ -1922,7 +1883,7 @@ def section(section):
         chat_employees=chat_employees,
         chat_messages=chat_messages,
         chat_to_id=chat_to_id,
-        ai_chat_history=ai_chat_history,
+        ai_insights=ai_insights,
         all_bonuses=all_bonuses,
         all_logs=all_logs,
         payments=payments,
@@ -2009,7 +1970,6 @@ def logout():
     session.clear()
     return redirect(url_for('index', msg='Вы вышли из системы'))
 
-# === ОСТАЛЬНЫЕ МАРШРУТЫ (без изменений) ===
 @app.route('/send_message', methods=['POST'])
 def send_message():
     if session.get('user_id') is None:
@@ -2041,25 +2001,6 @@ def get_messages():
     if not html:
         html = '<p style="color:rgba(255,255,255,0.3);text-align:center;padding:20px;">Нет сообщений.</p>'
     return {'html': html}
-
-@app.route('/ai_chat', methods=['POST'])
-def ai_chat():
-    if session.get('user_id') is None:
-        return redirect(url_for('index', msg='Войдите в систему!'))
-    question = request.form.get('question', '').strip()
-    emp_id = request.form.get('emp_id', type=int)
-    if not question:
-        return redirect(url_for('section', section='ai', msg='Напишите вопрос!'))
-    conn = get_db()
-    response = generate_ai_response(question, conn, emp_id)
-    conn.close()
-    history = session.get('ai_chat_history', [])
-    history.append({'type': 'user', 'text': question})
-    history.append({'type': 'ai', 'text': response})
-    if len(history) > 20:
-        history = history[-20:]
-    session['ai_chat_history'] = history
-    return redirect(url_for('section', section='ai', emp_id=emp_id if emp_id else ''))
 
 @app.route('/add_employee', methods=['POST'])
 def add_employee():
