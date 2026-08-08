@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 import os
 import io
 import csv
+import base64
 
 app = Flask(__name__)
 app.secret_key = 'zarplata_club_secret_2024'
@@ -15,8 +16,9 @@ def get_db():
     conn = sqlite3.connect(db_path, check_same_thread=False)
     cur = conn.cursor()
     
+    # Сотрудники (добавлено поле avatar)
     cur.execute('''CREATE TABLE IF NOT EXISTS employees 
-                   (id INTEGER PRIMARY KEY, name TEXT UNIQUE, password TEXT, is_admin INTEGER DEFAULT 0)''')
+                   (id INTEGER PRIMARY KEY, name TEXT UNIQUE, password TEXT, is_admin INTEGER DEFAULT 0, avatar TEXT DEFAULT '')''')
     
     cur.execute('''CREATE TABLE IF NOT EXISTS hours_log 
                    (id INTEGER PRIMARY KEY, employee_id INTEGER, work_date TEXT, 
@@ -31,8 +33,25 @@ def get_db():
     cur.execute('''CREATE TABLE IF NOT EXISTS events 
                    (id INTEGER PRIMARY KEY, event_date TEXT, title TEXT, description TEXT)''')
     
+    # === ТАБЛИЦА АУДИТА ===
+    cur.execute('''CREATE TABLE IF NOT EXISTS audit_log 
+                   (id INTEGER PRIMARY KEY, admin_id INTEGER, admin_name TEXT,
+                    action_type TEXT, action_details TEXT, action_date TEXT,
+                    FOREIGN KEY(admin_id) REFERENCES employees(id))''')
+    
     conn.commit()
     return conn
+
+# === ФУНКЦИЯ ДЛЯ ЗАПИСИ В АУДИТ ===
+def log_audit(admin_id, admin_name, action_type, action_details):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO audit_log (admin_id, admin_name, action_type, action_details, action_date) VALUES (?, ?, ?, ?, ?)",
+        (admin_id, admin_name, action_type, action_details, str(date.today()))
+    )
+    conn.commit()
+    conn.close()
 
 # === ФУНКЦИЯ ДЛЯ ПРЕОБРАЗОВАНИЯ ДАТ ===
 def format_date_ru(date_str):
@@ -59,7 +78,7 @@ def get_month_days(year, month):
 # === ГЛАВНАЯ СТРАНИЦА ===
 HTML = '''
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -70,66 +89,83 @@ HTML = '''
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #0b0b1a;
+            background: var(--bg-body);
             min-height: 100vh;
             padding: 20px;
             position: relative;
             overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
         }
-        /* КРАСИВЫЙ ФОН С ДИСКО-ШАРАМИ */
-        body::before {
-            content: '';
+        :root {
+            --bg-body: #0b0b1a;
+            --bg-container: rgba(255, 255, 255, 0.07);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-primary: #fff;
+            --text-secondary: rgba(255,255,255,0.6);
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --shadow-color: rgba(0,0,0,0.6);
+            --glass-border: rgba(255,255,255,0.08);
+        }
+        [data-theme="light"] {
+            --bg-body: #f0f2f5;
+            --bg-container: rgba(255, 255, 255, 0.7);
+            --border-color: rgba(0, 0, 0, 0.06);
+            --text-primary: #1a1a2e;
+            --text-secondary: rgba(0,0,0,0.5);
+            --card-bg: rgba(255, 255, 255, 0.6);
+            --input-bg: rgba(255, 255, 255, 0.8);
+            --shadow-color: rgba(0,0,0,0.1);
+            --glass-border: rgba(0,0,0,0.05);
+        }
+        #particles-js {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.2) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.15) 0%, transparent 60%),
-                radial-gradient(ellipse at 50% 100%, rgba(255, 217, 61, 0.1) 0%, transparent 40%);
-            z-index: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
             pointer-events: none;
         }
-        .disco-ball {
+        .star {
             position: fixed;
+            width: 3px;
+            height: 3px;
+            background: white;
             border-radius: 50%;
-            pointer-events: none;
+            opacity: 0.5;
+            animation: twinkle var(--duration) ease-in-out infinite alternate;
             z-index: 0;
-            opacity: 0.1;
+            pointer-events: none;
         }
-        .disco-ball.d1 { width: 400px; height: 400px; top: -100px; right: -100px; background: radial-gradient(circle, #9d4edd, transparent); animation: pulseGlow 8s ease-in-out infinite; }
-        .disco-ball.d2 { width: 500px; height: 500px; bottom: -150px; left: -150px; background: radial-gradient(circle, #ff6b6b, transparent); animation: pulseGlow 10s ease-in-out infinite reverse; }
-        .disco-ball.d3 { width: 250px; height: 250px; top: 50%; left: 50%; background: radial-gradient(circle, #ffd93d, transparent); transform: translate(-50%, -50%); animation: pulseGlow 6s ease-in-out infinite; }
-        @keyframes pulseGlow {
-            0%, 100% { opacity: 0.05; transform: scale(1); }
-            50% { opacity: 0.15; transform: scale(1.1); }
+        @keyframes twinkle {
+            0% { opacity: 0.1; transform: scale(0.8); }
+            100% { opacity: 0.8; transform: scale(1.2); }
         }
-        
         .container {
             max-width: 1300px;
             margin: 0 auto;
-            background: rgba(255, 255, 255, 0.07);
+            background: var(--bg-container);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-radius: 40px;
             padding: 35px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            box-shadow: 0 30px 60px var(--shadow-color);
             animation: slideIn 0.6s ease;
             position: relative;
             z-index: 1;
-            border: 1px solid rgba(255,255,255,0.08);
+            border: 1px solid var(--glass-border);
+            transition: background 0.3s ease;
         }
         @keyframes slideIn {
             from { opacity: 0; transform: translateY(-40px) scale(0.96); }
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        
         .header {
             text-align: center;
             margin-bottom: 25px;
             padding-bottom: 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            border-bottom: 1px solid var(--border-color);
             position: relative;
         }
         .header .logo { font-size: 60px; display: block; animation: floatIcon 4s ease-in-out infinite; }
@@ -146,28 +182,48 @@ HTML = '''
             margin-bottom: 5px;
             letter-spacing: 5px;
             text-transform: uppercase;
-            text-shadow: 0 0 40px rgba(192, 132, 252, 0.2);
         }
         .subtitle {
-            color: rgba(255,255,255,0.6);
+            color: var(--text-secondary);
             font-size: 1.1em;
             font-weight: 300;
+            transition: color 0.3s ease;
         }
         .subtitle span { color: #c084fc; font-weight: 600; }
-        
-        /* КНОПКА ВЫХОДА (СТИЛЬНАЯ) */
+        .theme-toggle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            font-size: 18px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .theme-toggle:hover {
+            border-color: #c084fc;
+            color: #c084fc;
+            transform: scale(1.05);
+        }
         .logout-icon {
             position: absolute;
             top: 0;
             right: 0;
-            font-size: 20px;
-            color: rgba(255,255,255,0.4);
+            font-size: 18px;
+            color: var(--text-secondary);
             text-decoration: none;
             padding: 8px 12px;
             border-radius: 50%;
             transition: 0.3s;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             width: 44px;
             height: 44px;
             display: flex;
@@ -175,48 +231,67 @@ HTML = '''
             justify-content: center;
         }
         .logout-icon:hover {
-            background: rgba(255,107,107,0.2);
+            background: rgba(255,107,107,0.15);
             color: #ff6b6b;
             border-color: rgba(255,107,107,0.3);
             transform: rotate(90deg);
         }
-        
-        /* КАРТОЧКИ МЕНЮ (СТЕКЛЯННЫЕ) */
         .main-menu {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 18px;
             margin: 35px 0;
         }
         .menu-card {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.06);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             padding: 28px 16px;
             border-radius: 24px;
             text-align: center;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             text-decoration: none;
-            color: #fff;
+            color: var(--text-primary);
             display: block;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
         .menu-card:hover {
             transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 20px 40px rgba(157, 78, 221, 0.25);
-            border-color: rgba(157, 78, 221, 0.3);
-            background: rgba(255,255,255,0.08);
+            box-shadow: 0 20px 40px rgba(157, 78, 221, 0.15);
+            border-color: rgba(157, 78, 221, 0.2);
+            background: var(--card-bg);
         }
         .menu-card .icon { font-size: 38px; display: block; margin-bottom: 12px; color: #c084fc; }
-        .menu-card .title { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
-        .menu-card .desc { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+        .menu-card .title { font-size: 16px; font-weight: 700; }
+        .menu-card .desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
         .menu-card.events .icon { color: #fcd34d; }
-        .menu-card.events:hover { border-color: rgba(252, 211, 77, 0.3); box-shadow: 0 20px 40px rgba(252, 211, 77, 0.15); }
         .menu-card.add .icon { color: #6bcb77; }
-        .menu-card.add:hover { border-color: rgba(107, 203, 119, 0.3); box-shadow: 0 20px 40px rgba(107, 203, 119, 0.15); }
+        .menu-card.audit .icon { color: #60a5fa; }
         
-        /* СТАТИСТИКА */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: 0.3s;
+        }
+        .card:hover { border-color: var(--border-color); }
+        .card h3 {
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.2em;
+        }
+        .card h3 .icon { font-size: 22px; color: #c084fc; }
+        .card.green { border-left: 3px solid #6bcb77; }
+        .card.pink { border-left: 3px solid #f472b6; }
+        .card.gold { border-left: 3px solid #fcd34d; }
+        .card.blue { border-left: 3px solid #60a5fa; }
+        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
@@ -224,16 +299,14 @@ HTML = '''
             margin-bottom: 25px;
         }
         .stat-card {
-            background: rgba(255,255,255,0.04);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             padding: 16px 10px;
             border-radius: 20px;
             text-align: center;
             transition: 0.3s;
         }
         .stat-card:hover {
-            background: rgba(255,255,255,0.07);
             transform: translateY(-3px);
             border-color: rgba(157, 78, 221, 0.15);
         }
@@ -245,41 +318,14 @@ HTML = '''
             -webkit-text-fill-color: transparent;
         }
         .stat-card .label {
-            color: rgba(255,255,255,0.4);
+            color: var(--text-secondary);
             font-size: 11px;
             font-weight: 600;
             margin-top: 4px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: rgba(255,255,255,0.2); }
-        
-        /* ОБЩИЕ КАРТОЧКИ */
-        .card {
-            background: rgba(255,255,255,0.04);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 24px;
-            padding: 24px;
-            margin-bottom: 24px;
-            transition: 0.3s;
-        }
-        .card:hover { border-color: rgba(255,255,255,0.08); }
-        .card h3 {
-            color: #fff;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 700;
-            font-size: 1.2em;
-            letter-spacing: 0.5px;
-        }
-        .card h3 .icon { font-size: 22px; color: #c084fc; }
-        .card.green { border-left: 3px solid #6bcb77; }
-        .card.pink { border-left: 3px solid #f472b6; }
-        .card.gold { border-left: 3px solid #fcd34d; }
-        .card.blue { border-left: 3px solid #60a5fa; }
+        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: var(--text-secondary); }
         
         .form-group {
             display: flex;
@@ -289,24 +335,25 @@ HTML = '''
         }
         input, select, textarea {
             padding: 12px 18px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
             border-radius: 14px;
             font-size: 14px;
             font-family: 'Inter', sans-serif;
-            color: #fff;
+            color: var(--text-primary);
             transition: all 0.3s ease;
             flex: 1;
             min-width: 120px;
             outline: none;
         }
-        input::placeholder, select { color: rgba(255,255,255,0.3); }
+        input::placeholder, select { color: var(--text-secondary); }
         input:focus, select:focus {
             border-color: #c084fc;
-            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.15);
-            background: rgba(255,255,255,0.08);
+            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.1);
+            background: var(--input-bg);
         }
-        input[type="date"] { min-width: 160px; cursor: pointer; color: #fff; }
+        input[type="date"] { min-width: 160px; cursor: pointer; color: var(--text-primary); }
+        input[type="file"] { padding: 10px; color: var(--text-secondary); }
         input[type="checkbox"] {
             width: 22px;
             height: 22px;
@@ -315,7 +362,36 @@ HTML = '''
             accent-color: #c084fc;
             cursor: pointer;
         }
-        label { color: rgba(255,255,255,0.7); font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        label { color: var(--text-secondary); font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 4px 16px;
+            transition: 0.3s;
+        }
+        .search-box:focus-within {
+            border-color: #c084fc;
+            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.05);
+        }
+        .search-box input {
+            border: none;
+            background: transparent;
+            padding: 12px 0;
+            flex: 1;
+            font-size: 14px;
+            color: var(--text-primary);
+            outline: none;
+        }
+        .search-box i {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
         
         .btn {
             padding: 12px 24px;
@@ -331,43 +407,40 @@ HTML = '''
             align-items: center;
             gap: 8px;
             flex: 0 0 auto;
-            letter-spacing: 0.3px;
         }
-        .btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
-        .btn:active { transform: scale(0.95); }
+        .btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
         .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%); }
         .btn-green { background: linear-gradient(135deg, #6bcb77 0%, #2d8f47 100%); }
         .btn-gold { background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%); color: #1a1a2e; }
         .btn-red { background: linear-gradient(135deg, #ff6b6b 0%, #dc2626 100%); }
         .btn-sm { padding: 8px 16px; font-size: 12px; border-radius: 10px; }
+        .btn-avatar { background: rgba(192,132,252,0.15); color: #c084fc; border: 1px solid rgba(192,132,252,0.2); padding: 6px 12px; font-size: 12px; border-radius: 10px; cursor: pointer; transition: 0.3s; }
+        .btn-avatar:hover { background: rgba(192,132,252,0.25); }
         
-        .table-wrapper {
-            overflow-x: auto;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
+        .table-wrapper { overflow-x: auto; border-radius: 16px; border: 1px solid var(--border-color); }
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
-            color: rgba(255,255,255,0.9);
+            color: var(--text-primary);
         }
         table th {
-            background: rgba(255,255,255,0.05);
-            color: rgba(255,255,255,0.6);
+            background: var(--card-bg);
+            color: var(--text-secondary);
             padding: 12px 14px;
             text-align: left;
             font-weight: 600;
             font-size: 12px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid var(--border-color);
         }
         table td {
             padding: 11px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid var(--border-color);
         }
-        table tr:hover td { background: rgba(255,255,255,0.03); }
+        table tr:hover td { background: var(--card-bg); }
+        
         .badge {
             display: inline-block;
             padding: 4px 14px;
@@ -378,22 +451,8 @@ HTML = '''
             color: #c084fc;
         }
         .badge-gold { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
-        .konserzhka-badge {
-            display: inline-block;
-            background: rgba(252, 211, 77, 0.1);
-            color: #fcd34d;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .rate-badge {
-            display: inline-block;
-            padding: 2px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
+        .badge-blue { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+        .rate-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .rate-badge.r400 { background: rgba(107, 203, 119, 0.15); color: #6bcb77; }
         .rate-badge.r350 { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
         
@@ -402,17 +461,16 @@ HTML = '''
             border-radius: 16px;
             margin: 12px 0;
             font-weight: 600;
-            animation: pulse 2s infinite;
             border-left: 3px solid;
+            background: var(--card-bg);
         }
-        .alert-success { background: rgba(107, 203, 119, 0.1); color: #6bcb77; border-color: #6bcb77; }
-        .alert-danger { background: rgba(255, 107, 107, 0.1); color: #ff6b6b; border-color: #ff6b6b; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        .alert-success { color: #6bcb77; border-color: #6bcb77; }
+        .alert-danger { color: #ff6b6b; border-color: #ff6b6b; }
         
         .back-link {
             display: inline-block;
             margin-bottom: 16px;
-            color: rgba(255,255,255,0.4);
+            color: var(--text-secondary);
             font-weight: 600;
             text-decoration: none;
             font-size: 14px;
@@ -425,24 +483,42 @@ HTML = '''
             justify-content: space-between;
             align-items: center;
             padding: 14px 18px;
-            background: rgba(255,255,255,0.03);
+            background: var(--card-bg);
             border-radius: 16px;
             margin-bottom: 8px;
-            border: 1px solid rgba(255,255,255,0.04);
+            border: 1px solid var(--border-color);
             transition: 0.3s;
-            color: #fff;
+            color: var(--text-primary);
         }
         .employee-card:hover {
             border-color: rgba(157, 78, 221, 0.2);
-            background: rgba(255,255,255,0.05);
+            background: var(--card-bg);
         }
-        .employee-card .name { font-weight: 700; font-size: 16px; }
-        .employee-card .stats { color: rgba(255,255,255,0.4); font-size: 14px; }
-        .employee-card .stats strong { color: #fff; }
+        .employee-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-right: 12px;
+            border: 2px solid rgba(192,132,252,0.2);
+        }
+        .employee-avatar-placeholder {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+        .employee-info { display: flex; align-items: center; flex: 1; }
         .delete-btn {
             background: none;
             border: none;
-            color: rgba(255,255,255,0.2);
+            color: var(--text-secondary);
             cursor: pointer;
             font-size: 16px;
             transition: 0.3s;
@@ -450,24 +526,13 @@ HTML = '''
         }
         .delete-btn:hover { color: #ff6b6b; transform: scale(1.2); }
         
-        .period-group h4 {
-            color: rgba(255,255,255,0.5);
-            margin-bottom: 10px;
-            font-size: 14px;
-            padding: 8px 14px;
-            border-radius: 12px;
-            background: rgba(255,255,255,0.03);
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
         }
-        .period-group h4.first { border-left: 3px solid #6bcb77; }
-        .period-group h4.second { border-left: 3px solid #fcd34d; }
-        
-        .total-row td { 
-            border-top: 1px solid rgba(255,255,255,0.08);
-            color: #fff !important;
-            font-weight: 700;
-        }
-        
-        /* КАЛЕНДАРЬ */
+        .month-nav .month-title { font-size: 22px; font-weight: 700; color: var(--text-primary); }
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -475,20 +540,16 @@ HTML = '''
             margin: 15px 0;
         }
         .calendar-day {
-            background: rgba(255,255,255,0.03);
-            backdrop-filter: blur(4px);
+            background: var(--card-bg);
             padding: 10px 4px;
             border-radius: 14px;
             text-align: center;
             min-height: 70px;
-            border: 1px solid rgba(255,255,255,0.04);
+            border: 1px solid var(--border-color);
             transition: 0.3s;
         }
-        .calendar-day:hover {
-            border-color: rgba(192, 132, 252, 0.2);
-            background: rgba(255,255,255,0.05);
-        }
-        .calendar-day .day-num { font-weight: 700; font-size: 16px; color: #fff; }
+        .calendar-day:hover { border-color: rgba(192, 132, 252, 0.2); }
+        .calendar-day .day-num { font-weight: 700; font-size: 16px; color: var(--text-primary); }
         .calendar-day .day-event {
             font-size: 10px;
             background: rgba(252, 211, 77, 0.15);
@@ -504,39 +565,19 @@ HTML = '''
         .calendar-day.today { border-color: #c084fc; background: rgba(192, 132, 252, 0.05); }
         .calendar-day .add-event-btn {
             font-size: 12px;
-            color: rgba(255,255,255,0.2);
+            color: var(--text-secondary);
             cursor: pointer;
             display: block;
             margin-top: 2px;
         }
         .calendar-day .add-event-btn:hover { color: #c084fc; }
-        .month-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 18px;
-        }
-        .month-nav .month-title { font-size: 22px; font-weight: 700; color: #fff; }
-        
-        .events-list .event-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            margin-bottom: 6px;
-            border-left: 3px solid rgba(252, 211, 77, 0.2);
-        }
-        .events-list .event-item .event-date { font-weight: 600; color: rgba(255,255,255,0.4); font-size: 13px; }
-        .events-list .event-item .event-title { font-weight: 600; flex: 1; margin: 0 10px; color: #fff; }
         
         .chart-container {
-            background: rgba(255,255,255,0.03);
+            background: var(--card-bg);
             border-radius: 16px;
             padding: 18px;
             margin-top: 12px;
-            border: 1px solid rgba(255,255,255,0.04);
+            border: 1px solid var(--border-color);
         }
         .chart-bar {
             display: flex;
@@ -548,12 +589,12 @@ HTML = '''
             min-width: 80px;
             font-weight: 600;
             font-size: 13px;
-            color: rgba(255,255,255,0.6);
+            color: var(--text-secondary);
         }
         .chart-bar .bar-track {
             flex: 1;
             height: 26px;
-            background: rgba(255,255,255,0.05);
+            background: var(--border-color);
             border-radius: 14px;
             overflow: hidden;
         }
@@ -571,44 +612,37 @@ HTML = '''
             font-size: 12px;
         }
         
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 18px;
-            flex-wrap: wrap;
-        }
-        .tab {
-            padding: 10px 22px;
-            border-radius: 30px;
-            background: rgba(255,255,255,0.04);
-            cursor: pointer;
-            font-weight: 700;
+        .period-group h4 {
+            color: var(--text-secondary);
+            margin-bottom: 10px;
             font-size: 14px;
-            transition: all 0.3s ease;
-            border: 1px solid transparent;
-            font-family: 'Inter', sans-serif;
-            color: rgba(255,255,255,0.4);
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: var(--card-bg);
         }
-        .tab:hover { background: rgba(255,255,255,0.06); color: #fff; }
-        .tab.active {
-            background: rgba(192, 132, 252, 0.15);
-            color: #c084fc;
-            border-color: rgba(192, 132, 252, 0.2);
-        }
-        .hidden { display: none !important; }
+        .period-group h4.first { border-left: 3px solid #6bcb77; }
+        .period-group h4.second { border-left: 3px solid #fcd34d; }
         
-        .month-selector {
+        .total-row td { 
+            border-top: 1px solid var(--border-color);
+            color: var(--text-primary) !important;
+            font-weight: 700;
+        }
+        
+        .audit-item {
+            padding: 10px 14px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            margin-bottom: 6px;
+            border-left: 3px solid #60a5fa;
             display: flex;
-            gap: 12px;
+            justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            margin-bottom: 18px;
         }
-        .month-selector input[type="month"] {
-            flex: 0 0 auto;
-            min-width: 180px;
-            color: #fff;
-        }
+        .audit-item .admin { color: #c084fc; font-weight: 600; }
+        .audit-item .action { color: var(--text-primary); }
+        .audit-item .date { color: var(--text-secondary); font-size: 12px; }
         
         @media (max-width: 700px) {
             .container { padding: 16px; border-radius: 24px; }
@@ -622,16 +656,15 @@ HTML = '''
             .calendar-grid { gap: 4px; font-size: 12px; }
             .calendar-day { min-height: 50px; padding: 4px; }
             .employee-card { flex-direction: column; align-items: stretch; gap: 6px; }
-            .logout-icon { top: 4px; right: 4px; width: 36px; height: 36px; font-size: 16px; }
+            .theme-toggle, .logout-icon { top: 4px; width: 36px; height: 36px; font-size: 14px; }
+            .theme-toggle { left: 4px; }
+            .logout-icon { right: 4px; }
             .header .logo { font-size: 40px; }
         }
     </style>
 </head>
 <body>
-
-<div class="disco-ball d1"></div>
-<div class="disco-ball d2"></div>
-<div class="disco-ball d3"></div>
+<div id="particles-js"></div>
 
 <div class="container">
     <div class="header">
@@ -640,6 +673,9 @@ HTML = '''
         <p class="subtitle">🎵 Учёт зарплаты · Ставка <span>400</span> или <span>350</span> ₽/ч · Консержка <span>+1500 ₽</span></p>
         
         {% if session.get('user_id') is not none %}
+        <button class="theme-toggle" onclick="toggleTheme()" title="Сменить тему">
+            <i class="fas fa-moon"></i>
+        </button>
         <a href="/logout" class="logout-icon" title="Выйти">
             <i class="fas fa-sign-out-alt"></i>
         </a>
@@ -647,7 +683,6 @@ HTML = '''
     </div>
 
     {% if session.get('user_id') is none %}
-    <!-- ВХОД -->
     <div class="card" style="border-left: 3px solid #60a5fa;">
         <h3><span class="icon"><i class="fas fa-lock"></i></span> Вход</h3>
         <form method="POST" action="/login" class="form-group">
@@ -662,18 +697,17 @@ HTML = '''
     {% else %}
     
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
-        <div style="font-weight:600;font-size:18px;color:rgba(255,255,255,0.8);">
+        <div style="font-weight:600;font-size:18px;color:var(--text-secondary);">
             <i class="fas fa-user" style="color:#c084fc;"></i> 
-            <span style="color:#c084fc;font-weight:700;">{{ session.user_name }}</span>
+            <span style="color:var(--text-primary);font-weight:700;">{{ session.user_name }}</span>
             {% if session.is_admin %}
-            <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;">
+            <span style="font-size:13px;color:var(--text-secondary);margin-left:10px;">
                 <i class="fas fa-crown" style="color:#fcd34d;"></i> Админ
             </span>
             {% endif %}
         </div>
     </div>
 
-    <!-- ===== ГЛАВНОЕ МЕНЮ ===== -->
     {% if not current_section or current_section == 'main' %}
     <div class="main-menu">
         <a href="/section/employees" class="menu-card">
@@ -707,43 +741,27 @@ HTML = '''
             <div class="title">Добавить</div>
             <div class="desc">Новый сотрудник / часы</div>
         </a>
+        <a href="/section/audit" class="menu-card audit">
+            <span class="icon"><i class="fas fa-history"></i></span>
+            <div class="title">История</div>
+            <div class="desc">Аудит действий</div>
+        </a>
         {% endif %}
     </div>
 
-    <!-- ДАШБОРД -->
     <div class="card">
         <h3><span class="icon"><i class="fas fa-chart-bar"></i></span> Статистика месяца</h3>
         <div class="stats-grid">
-            <div class="stat-card">
-                <span class="icon"><i class="fas fa-users"></i></span>
-                <div class="number">{{ stats.total_employees }}</div>
-                <div class="label">Сотрудников</div>
-            </div>
-            <div class="stat-card">
-                <span class="icon"><i class="fas fa-clock"></i></span>
-                <div class="number">{{ stats.total_hours|round(1) }}</div>
-                <div class="label">Часов</div>
-            </div>
-            <div class="stat-card">
-                <span class="icon"><i class="fas fa-ruble-sign"></i></span>
-                <div class="number">{{ stats.total_salary|round(0) }}</div>
-                <div class="label">Зарплата</div>
-            </div>
-            <div class="stat-card">
-                <span class="icon"><i class="fas fa-utensils"></i></span>
-                <div class="number">{{ stats.total_konserzhka }}</div>
-                <div class="label">Консержек</div>
-            </div>
-            <div class="stat-card">
-                <span class="icon"><i class="fas fa-gem"></i></span>
-                <div class="number">{{ stats.grand_total|round(0) }}</div>
-                <div class="label">ИТОГО</div>
-            </div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-users"></i></span><div class="number">{{ stats.total_employees }}</div><div class="label">Сотрудников</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ stats.total_hours|round(1) }}</div><div class="label">Часов</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ stats.total_salary|round(0) }}</div><div class="label">Зарплата</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ stats.total_konserzhka }}</div><div class="label">Консержек</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ stats.grand_total|round(0) }}</div><div class="label">ИТОГО</div></div>
         </div>
         
         {% if chart_data %}
         <div class="chart-container">
-            <h4 style="margin-bottom:12px;color:rgba(255,255,255,0.4);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
+            <h4 style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
                 <i class="fas fa-chart-simple" style="color:#c084fc;"></i> Часы по сотрудникам
             </h4>
             {% for item in chart_data %}
@@ -761,23 +779,41 @@ HTML = '''
     </div>
     {% endif %}
 
-    <!-- ===== РАЗДЕЛЫ ===== -->
     {% if current_section == 'employees' %}
     <div class="card">
         <h3><span class="icon"><i class="fas fa-users"></i></span> Все сотрудники</h3>
-        <p style="color:rgba(255,255,255,0.3);margin-bottom:14px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
+        <p style="color:var(--text-secondary);margin-bottom:14px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
+        
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="employeeSearch" placeholder="Поиск по имени..." oninput="filterEmployees()">
+        </div>
+        
+        <div id="employeeList">
         {% if employees %}
         {% for emp in employees %}
-        <div class="employee-card" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;">
-            <div class="name">{{ emp.name }}</div>
-            <div class="stats">
-                <i class="fas fa-clock" style="color:#c084fc;"></i> <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
-                <i class="fas fa-utensils" style="color:#fcd34d;"></i> <strong>{{ emp.month_konserzhka }}</strong> · 
-                <i class="fas fa-ruble-sign" style="color:#6bcb77;"></i> <strong>{{ emp.month_total|round(0) }}</strong> ₽
+        <div class="employee-card" data-name="{{ emp.name|lower }}" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;">
+            <div class="employee-info">
+                {% if emp.avatar %}
+                <img src="data:image/jpeg;base64,{{ emp.avatar }}" class="employee-avatar" alt="{{ emp.name }}">
+                {% else %}
+                <div class="employee-avatar-placeholder"><i class="fas fa-user"></i></div>
+                {% endif %}
+                <div class="name">{{ emp.name }}</div>
+            </div>
+            <div class="stats" style="color:var(--text-secondary);font-size:14px;">
+                <i class="fas fa-clock" style="color:#c084fc;"></i> <strong style="color:var(--text-primary);">{{ emp.month_hours|round(1) }}</strong> ч · 
+                <i class="fas fa-utensils" style="color:#fcd34d;"></i> <strong style="color:var(--text-primary);">{{ emp.month_konserzhka }}</strong> · 
+                <i class="fas fa-ruble-sign" style="color:#6bcb77;"></i> <strong style="color:var(--text-primary);">{{ emp.month_total|round(0) }}</strong> ₽
             </div>
             <div class="actions">
                 {% if session.is_admin %}
+                <form method="POST" action="/upload_avatar" enctype="multipart/form-data" style="display:inline;" onclick="event.stopPropagation();">
+                    <input type="hidden" name="emp_id" value="{{ emp.id }}">
+                    <input type="file" name="avatar" accept="image/*" style="display:none;" id="avatar-{{ emp.id }}" onchange="this.form.submit()">
+                    <label for="avatar-{{ emp.id }}" class="btn-avatar" style="cursor:pointer;"><i class="fas fa-camera"></i></label>
+                </form>
                 <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')" onclick="event.stopPropagation();">
                     <input type="hidden" name="emp_id" value="{{ emp.id }}">
                     <button type="submit" class="delete-btn" title="Удалить сотрудника"><i class="fas fa-trash"></i></button>
@@ -787,7 +823,30 @@ HTML = '''
         </div>
         {% endfor %}
         {% else %}
-        <p style="text-align:center;color:rgba(255,255,255,0.2);padding:30px;"><i class="fas fa-face-frown"></i> Нет сотрудников</p>
+        <p style="text-align:center;color:var(--text-secondary);padding:30px;"><i class="fas fa-face-frown"></i> Нет сотрудников</p>
+        {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if current_section == 'audit' and session.is_admin %}
+    <div class="card blue">
+        <h3><span class="icon"><i class="fas fa-history"></i></span> История изменений (Аудит)</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
+        {% if audit_logs %}
+        <div style="max-height:500px;overflow-y:auto;">
+            {% for log in audit_logs %}
+            <div class="audit-item">
+                <span>
+                    <span class="admin">👤 {{ log.admin_name }}</span>
+                    <span class="action">{{ log.action_type }}: {{ log.action_details }}</span>
+                </span>
+                <span class="date"><i class="far fa-calendar-alt"></i> {{ log.date_ru }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-secondary);"><i class="fas fa-inbox"></i> История пока пуста</p>
         {% endif %}
     </div>
     {% endif %}
@@ -796,22 +855,19 @@ HTML = '''
     <div class="card gold">
         <h3><span class="icon"><i class="fas fa-calendar-alt"></i></span> Календарь мероприятий</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
-        
         <div class="month-nav">
             <button class="btn btn-sm btn-purple" onclick="window.location.href='/section/events?month={{ prev_month }}'"><i class="fas fa-chevron-left"></i></button>
             <span class="month-title">{{ month_name }}</span>
             <button class="btn btn-sm btn-purple" onclick="window.location.href='/section/events?month={{ next_month }}'"><i class="fas fa-chevron-right"></i></button>
         </div>
-        
         <div class="calendar-grid">
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Пн</div>
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Вт</div>
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Ср</div>
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Чт</div>
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Пт</div>
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Сб</div>
-            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Вс</div>
-            
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Пн</div>
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Вт</div>
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Ср</div>
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Чт</div>
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Пт</div>
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Сб</div>
+            <div style="font-weight:700;color:var(--text-secondary);text-align:center;font-size:11px;text-transform:uppercase;">Вс</div>
             {% for day in calendar_days %}
             <div class="calendar-day{% if day.is_weekend %} weekend{% endif %}{% if day.is_today %} today{% endif %}">
                 <div class="day-num">{{ day.day }}</div>
@@ -826,10 +882,9 @@ HTML = '''
             </div>
             {% endfor %}
         </div>
-        
         {% if session.is_admin %}
-        <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.05);">
-            <h4 style="color:rgba(255,255,255,0.6);margin-bottom:12px;"><i class="fas fa-plus-circle" style="color:#fcd34d;"></i> Добавить мероприятие</h4>
+        <div style="margin-top:18px;padding-top:18px;border-top:1px solid var(--border-color);">
+            <h4 style="color:var(--text-secondary);margin-bottom:12px;"><i class="fas fa-plus-circle" style="color:#fcd34d;"></i> Добавить мероприятие</h4>
             <form method="POST" action="/add_event" class="form-group">
                 <input type="date" name="event_date" value="{{ today }}" required>
                 <input type="text" name="title" placeholder="Название" required>
@@ -838,27 +893,26 @@ HTML = '''
             </form>
         </div>
         {% endif %}
-        
         <div class="events-list">
-            <h4 style="margin:18px 0 12px;color:rgba(255,255,255,0.3);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
+            <h4 style="margin:18px 0 12px;color:var(--text-secondary);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
                 <i class="fas fa-list" style="color:#fcd34d;"></i> Все события месяца
             </h4>
             {% if events %}
             {% for event in events %}
-            <div class="event-item">
-                <span class="event-date"><i class="far fa-calendar"></i> {{ event.date_ru }}</span>
-                <span class="event-title">{{ event.title }}</span>
-                <span style="font-size:13px;color:rgba(255,255,255,0.3);">{{ event.description or '' }}</span>
+            <div class="event-item" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--card-bg);border-radius:12px;margin-bottom:6px;border-left:3px solid rgba(252,211,77,0.2);">
+                <span style="font-weight:600;color:var(--text-secondary);font-size:13px;"><i class="far fa-calendar"></i> {{ event.date_ru }}</span>
+                <span style="font-weight:600;flex:1;margin:0 10px;color:var(--text-primary);">{{ event.title }}</span>
+                <span style="font-size:13px;color:var(--text-secondary);">{{ event.description or '' }}</span>
                 {% if session.is_admin %}
                 <form method="POST" action="/delete_event" style="display:inline;" onsubmit="return confirm('Удалить мероприятие?')">
                     <input type="hidden" name="event_id" value="{{ event.id }}">
-                    <button type="submit" class="delete-event" style="background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;transition:0.3s;padding:0 5px;" onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='rgba(255,255,255,0.2)'"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="delete-btn" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;transition:0.3s;padding:0 5px;" onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='var(--text-secondary)'"><i class="fas fa-trash"></i></button>
                 </form>
                 {% endif %}
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:rgba(255,255,255,0.2);text-align:center;padding:16px;"><i class="far fa-calendar-alt"></i> Нет событий на этот месяц</p>
+            <p style="color:var(--text-secondary);text-align:center;padding:16px;"><i class="far fa-calendar-alt"></i> Нет событий на этот месяц</p>
             {% endif %}
         </div>
     </div>
@@ -874,12 +928,17 @@ HTML = '''
                 <button type="submit" class="btn btn-sm btn-purple"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="hoursSearch" placeholder="Поиск по сотруднику или дате..." oninput="filterHours()">
+        </div>
+        <div id="hoursList">
         {% if all_logs %}
         <div class="table-wrapper">
             <table>
                 <tr><th>Дата</th><th>Сотрудник</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
                 {% for log in all_logs %}
-                <tr>
+                <tr class="hours-row" data-employee="{{ log.employee|lower }}" data-date="{{ log.date_ru|lower }}">
                     <td>{{ log.date_ru }}</td>
                     <td><span class="badge">{{ log.employee }}</span></td>
                     <td>{{ log.hours }}</td>
@@ -896,8 +955,9 @@ HTML = '''
         </div>
         {% endif %}
         {% else %}
-        <p style="text-align:center;color:rgba(255,255,255,0.2);padding:30px;"><i class="fas fa-inbox"></i> Нет записей</p>
+        <p style="text-align:center;color:var(--text-secondary);padding:30px;"><i class="fas fa-inbox"></i> Нет записей</p>
         {% endif %}
+        </div>
     </div>
     {% endif %}
 
@@ -911,7 +971,6 @@ HTML = '''
                 <button type="submit" class="btn btn-sm btn-purple"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
-        
         <div class="period-group">
             <h4 class="first"><i class="fas fa-hand-holding-usd"></i> 1–15 число (АВАНС)</h4>
             {% if payments.first %}
@@ -935,10 +994,9 @@ HTML = '''
                 </table>
             </div>
             {% else %}
-            <p style="color:rgba(255,255,255,0.2);font-size:14px;padding:8px 0;">Нет записей за этот период</p>
+            <p style="color:var(--text-secondary);font-size:14px;padding:8px 0;">Нет записей за этот период</p>
             {% endif %}
         </div>
-        
         <div class="period-group">
             <h4 class="second"><i class="fas fa-hand-holding-usd"></i> 16–конец месяца (ОКОНЧАТЕЛЬНЫЙ)</h4>
             {% if payments.second %}
@@ -962,7 +1020,7 @@ HTML = '''
                 </table>
             </div>
             {% else %}
-            <p style="color:rgba(255,255,255,0.2);font-size:14px;padding:8px 0;">Нет записей за этот период</p>
+            <p style="color:var(--text-secondary);font-size:14px;padding:8px 0;">Нет записей за этот период</p>
             {% endif %}
         </div>
     </div>
@@ -1001,7 +1059,7 @@ HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:rgba(255,255,255,0.2);"><i class="fas fa-gift"></i> Пока нет премий</p>
+        <p style="color:var(--text-secondary);"><i class="fas fa-gift"></i> Пока нет премий</p>
         {% endif %}
     </div>
     {% endif %}
@@ -1016,7 +1074,6 @@ HTML = '''
             <button type="submit" class="btn btn-green"><i class="fas fa-plus"></i> Добавить</button>
         </form>
     </div>
-    
     <div class="card" style="border-left: 3px solid #6bcb77;">
         <h3><span class="icon"><i class="fas fa-clock"></i></span> Добавить часы сотруднику</h3>
         <form method="POST" action="/add_hours" class="form-group">
@@ -1048,11 +1105,55 @@ HTML = '''
 </div>
 
 <script>
-function switchTab(tab) {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('[id^="tab-"]').forEach(t => t.classList.add('hidden'));
-    document.querySelector(`.tab[onclick*="${tab}"]`).classList.add('active');
-    document.getElementById('tab-' + tab).classList.remove('hidden');
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    const btn = document.querySelector('.theme-toggle i');
+    if (newTheme === 'dark') {
+        btn.className = 'fas fa-moon';
+    } else {
+        btn.className = 'fas fa-sun';
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        const btn = document.querySelector('.theme-toggle i');
+        if (savedTheme === 'light') {
+            btn.className = 'fas fa-sun';
+        }
+    }
+});
+function filterEmployees() {
+    const input = document.getElementById('employeeSearch');
+    const filter = input.value.toLowerCase();
+    const cards = document.querySelectorAll('#employeeList .employee-card');
+    cards.forEach(card => {
+        const name = card.getAttribute('data-name');
+        if (name && name.includes(filter)) {
+            card.style.display = 'flex';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+function filterHours() {
+    const input = document.getElementById('hoursSearch');
+    const filter = input.value.toLowerCase();
+    const rows = document.querySelectorAll('#hoursList .hours-row');
+    rows.forEach(row => {
+        const employee = row.getAttribute('data-employee');
+        const date = row.getAttribute('data-date');
+        if ((employee && employee.includes(filter)) || (date && date.includes(filter))) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
 }
 function addEvent(date) {
     var title = prompt('Введите название мероприятия:');
@@ -1087,7 +1188,7 @@ function addEvent(date) {
 
 EMPLOYEE_HTML = '''
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -1098,42 +1199,45 @@ EMPLOYEE_HTML = '''
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background: #0b0b1a;
+            background: var(--bg-body);
             min-height: 100vh;
             padding: 20px;
             position: relative;
             overflow-x: hidden;
+            transition: background 0.3s, color 0.3s;
         }
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: 
-                radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.15) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.1) 0%, transparent 60%);
-            z-index: 0;
-            pointer-events: none;
+        :root {
+            --bg-body: #0b0b1a;
+            --bg-container: rgba(255,255,255,0.06);
+            --border-color: rgba(255,255,255,0.05);
+            --text-primary: #fff;
+            --text-secondary: rgba(255,255,255,0.4);
+            --card-bg: rgba(255,255,255,0.04);
+            --shadow: rgba(0,0,0,0.5);
+        }
+        [data-theme="light"] {
+            --bg-body: #f0f2f5;
+            --bg-container: rgba(255,255,255,0.6);
+            --border-color: rgba(0,0,0,0.05);
+            --text-primary: #1a1a2e;
+            --text-secondary: rgba(0,0,0,0.5);
+            --card-bg: rgba(255,255,255,0.4);
+            --shadow: rgba(0,0,0,0.1);
         }
         .container {
             max-width: 1000px;
             margin: 0 auto;
-            background: rgba(255,255,255,0.06);
+            background: var(--bg-container);
             backdrop-filter: blur(20px);
             border-radius: 40px;
             padding: 35px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            box-shadow: 0 30px 60px var(--shadow);
             position: relative;
             z-index: 1;
-            border: 1px solid rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
             animation: slideIn 0.6s ease;
         }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-40px) scale(0.96); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(-40px); } to { opacity: 1; transform: translateY(0); } }
         .header {
             display: flex;
             justify-content: space-between;
@@ -1148,14 +1252,46 @@ EMPLOYEE_HTML = '''
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .back-link {
-            color: rgba(255,255,255,0.4);
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 15px;
+        .back-link { color: var(--text-secondary); font-weight: 600; text-decoration: none; transition: 0.3s; }
+        .back-link:hover { color: #c084fc; transform: translateX(-4px); }
+        
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid rgba(192,132,252,0.2);
+            margin-bottom: 10px;
+        }
+        .profile-avatar-placeholder {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: var(--card-bg);
+            border: 3px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        .avatar-upload {
+            margin: 10px 0 20px 0;
+        }
+        .avatar-upload input[type="file"] { display: none; }
+        .avatar-upload label {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-secondary);
             transition: 0.3s;
         }
-        .back-link:hover { color: #c084fc; transform: translateX(-4px); }
+        .avatar-upload label:hover { border-color: #c084fc; color: #c084fc; }
+        
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -1163,17 +1299,14 @@ EMPLOYEE_HTML = '''
             margin-bottom: 25px;
         }
         .stat-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             padding: 16px;
             border-radius: 20px;
             text-align: center;
             transition: 0.3s;
         }
-        .stat-card:hover {
-            background: rgba(255,255,255,0.06);
-            transform: translateY(-3px);
-        }
+        .stat-card:hover { transform: translateY(-3px); }
         .stat-card .number {
             font-size: 24px;
             font-weight: 800;
@@ -1181,23 +1314,17 @@ EMPLOYEE_HTML = '''
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .stat-card .label { color: rgba(255,255,255,0.3); font-size: 11px; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: rgba(255,255,255,0.1); }
+        .stat-card .label { color: var(--text-secondary); font-size: 11px; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: var(--text-secondary); }
         .card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.05);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             border-radius: 24px;
             padding: 24px;
             margin-bottom: 24px;
             transition: 0.3s;
         }
-        .card:hover { border-color: rgba(255,255,255,0.07); }
-        .card h3 {
-            color: #fff;
-            margin-bottom: 14px;
-            font-weight: 700;
-            font-size: 1.1em;
-        }
+        .card h3 { color: var(--text-primary); margin-bottom: 14px; font-weight: 700; font-size: 1.1em; }
         .card h3 i { color: #c084fc; margin-right: 10px; }
         .month-selector {
             display: flex;
@@ -1208,19 +1335,16 @@ EMPLOYEE_HTML = '''
         }
         .month-selector input[type="month"] {
             padding: 10px 16px;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
             border-radius: 14px;
             font-size: 14px;
             font-family: 'Inter', sans-serif;
-            color: #fff;
+            color: var(--text-primary);
             min-width: 180px;
             outline: none;
         }
-        .month-selector input[type="month"]:focus {
-            border-color: #c084fc;
-            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.1);
-        }
+        .month-selector input[type="month"]:focus { border-color: #c084fc; box-shadow: 0 0 0 4px rgba(192,132,252,0.1); }
         .btn {
             padding: 10px 20px;
             border: none;
@@ -1234,16 +1358,11 @@ EMPLOYEE_HTML = '''
         }
         .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
         .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%); }
-        .table-wrapper { overflow-x: auto; border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-            color: rgba(255,255,255,0.85);
-        }
+        .table-wrapper { overflow-x: auto; border-radius: 16px; border: 1px solid var(--border-color); }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; color: var(--text-primary); }
         table th {
-            background: rgba(255,255,255,0.04);
-            color: rgba(255,255,255,0.4);
+            background: var(--card-bg);
+            color: var(--text-secondary);
             padding: 12px 14px;
             text-align: left;
             font-weight: 600;
@@ -1253,22 +1372,23 @@ EMPLOYEE_HTML = '''
         }
         table td {
             padding: 11px 14px;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            border-bottom: 1px solid var(--border-color);
         }
-        table tr:hover td { background: rgba(255,255,255,0.02); }
-        .badge-purple { background: rgba(192, 132, 252, 0.15); color: #c084fc; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        table tr:hover td { background: var(--card-bg); }
+        .badge-purple { background: rgba(192,132,252,0.15); color: #c084fc; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
         .rate-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .rate-badge.r400 { background: rgba(107, 203, 119, 0.15); color: #6bcb77; }
-        .rate-badge.r350 { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
-        .total-row td { border-top: 1px solid rgba(255,255,255,0.08); color: #fff !important; font-weight: 700; }
+        .rate-badge.r400 { background: rgba(107,203,119,0.15); color: #6bcb77; }
+        .rate-badge.r350 { background: rgba(252,211,77,0.15); color: #fcd34d; }
+        .total-row td { border-top: 1px solid var(--border-color); color: var(--text-primary) !important; font-weight: 700; }
         .alert {
             padding: 14px 20px;
             border-radius: 16px;
             margin: 12px 0;
             font-weight: 600;
             border-left: 3px solid;
+            background: var(--card-bg);
         }
-        .alert-success { background: rgba(107, 203, 119, 0.08); color: #6bcb77; border-color: #6bcb77; }
+        .alert-success { color: #6bcb77; border-color: #6bcb77; }
         @media (max-width: 700px) {
             .container { padding: 16px; border-radius: 24px; }
             .header h1 { font-size: 1.6em; }
@@ -1281,6 +1401,23 @@ EMPLOYEE_HTML = '''
     <div class="header">
         <h1><i class="fas fa-user" style="color:#c084fc;"></i> {{ employee.name }}</h1>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Назад</a>
+    </div>
+
+    <div style="text-align:center;">
+        {% if employee.avatar %}
+        <img src="data:image/jpeg;base64,{{ employee.avatar }}" class="profile-avatar" alt="{{ employee.name }}">
+        {% else %}
+        <div class="profile-avatar-placeholder"><i class="fas fa-user"></i></div>
+        {% endif %}
+        {% if session.is_admin %}
+        <div class="avatar-upload">
+            <form method="POST" action="/upload_avatar" enctype="multipart/form-data" style="display:inline;">
+                <input type="hidden" name="emp_id" value="{{ employee.id }}">
+                <input type="file" name="avatar" accept="image/*" id="avatar-upload" onchange="this.form.submit()">
+                <label for="avatar-upload"><i class="fas fa-camera"></i> Сменить аватар</label>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     <div class="stats-grid">
@@ -1322,7 +1459,7 @@ EMPLOYEE_HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:rgba(255,255,255,0.2);"><i class="fas fa-inbox"></i> Нет записей за этот месяц</p>
+        <p style="color:var(--text-secondary);"><i class="fas fa-inbox"></i> Нет записей за этот месяц</p>
         {% endif %}
     </div>
 
@@ -1342,7 +1479,7 @@ EMPLOYEE_HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:rgba(255,255,255,0.2);"><i class="fas fa-gift"></i> Нет премий</p>
+        <p style="color:var(--text-secondary);"><i class="fas fa-gift"></i> Нет премий</p>
         {% endif %}
     </div>
 
@@ -1358,7 +1495,7 @@ EMPLOYEE_HTML = '''
 @app.route('/')
 def index():
     if session.get('user_id') is None:
-        return render_template_string(HTML, session={}, employees=[], all_logs=[], all_bonuses=[], my_logs=[], stats={}, payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, events=[], calendar_days=[], chart_data=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', current_year=0, prev_month='', next_month='', msg=request.args.get('msg'))
+        return render_template_string(HTML, session={}, employees=[], all_logs=[], all_bonuses=[], my_logs=[], stats={}, payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, events=[], calendar_days=[], chart_data=[], audit_logs=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', current_year=0, prev_month='', next_month='', msg=request.args.get('msg'))
     
     conn = get_db()
     today = date.today()
@@ -1372,6 +1509,7 @@ def index():
     stats = {}
     payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
     chart_data = []
+    audit_logs = []
     
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
     events = []
@@ -1385,7 +1523,7 @@ def index():
         })
     
     if session.get('is_admin'):
-        employees_raw = conn.execute("SELECT id, name FROM employees").fetchall()
+        employees_raw = conn.execute("SELECT id, name, avatar FROM employees").fetchall()
         max_hours = 0
         for emp in employees_raw:
             rows_month = conn.execute(
@@ -1403,6 +1541,7 @@ def index():
             emp_data = {
                 'id': emp[0],
                 'name': emp[1],
+                'avatar': emp[2] or '',
                 'month_hours': month_hours,
                 'month_salary': month_salary,
                 'month_konserzhka': month_konserzhka,
@@ -1462,6 +1601,18 @@ def index():
                 'employee': bonus[1],
                 'amount': bonus[2],
                 'description': bonus[3]
+            })
+        
+        # === АУДИТ ===
+        audit_raw = conn.execute(
+            "SELECT admin_name, action_type, action_details, action_date FROM audit_log ORDER BY id DESC LIMIT 100"
+        ).fetchall()
+        for a in audit_raw:
+            audit_logs.append({
+                'admin_name': a[0],
+                'action_type': a[1],
+                'action_details': a[2],
+                'date_ru': format_date_ru(a[3])
             })
         
         stats = {
@@ -1556,6 +1707,7 @@ def index():
         events=events,
         calendar_days=calendar_days,
         chart_data=chart_data,
+        audit_logs=audit_logs,
         today=today_str,
         selected_month=month,
         current_section='main',
@@ -1583,6 +1735,7 @@ def section(section):
     payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
     chart_data = []
     events = []
+    audit_logs = []
     
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
     for ev in events_raw:
@@ -1595,7 +1748,7 @@ def section(section):
         })
     
     if session.get('is_admin'):
-        employees_raw = conn.execute("SELECT id, name FROM employees").fetchall()
+        employees_raw = conn.execute("SELECT id, name, avatar FROM employees").fetchall()
         max_hours = 0
         for emp in employees_raw:
             rows_month = conn.execute(
@@ -1613,6 +1766,7 @@ def section(section):
             emp_data = {
                 'id': emp[0],
                 'name': emp[1],
+                'avatar': emp[2] or '',
                 'month_hours': month_hours,
                 'month_salary': month_salary,
                 'month_konserzhka': month_konserzhka,
@@ -1672,6 +1826,18 @@ def section(section):
                 'employee': bonus[1],
                 'amount': bonus[2],
                 'description': bonus[3]
+            })
+        
+        # === АУДИТ ===
+        audit_raw = conn.execute(
+            "SELECT admin_name, action_type, action_details, action_date FROM audit_log ORDER BY id DESC LIMIT 100"
+        ).fetchall()
+        for a in audit_raw:
+            audit_logs.append({
+                'admin_name': a[0],
+                'action_type': a[1],
+                'action_details': a[2],
+                'date_ru': format_date_ru(a[3])
             })
         
         stats = {
@@ -1760,6 +1926,7 @@ def section(section):
         events=events,
         calendar_days=calendar_days,
         chart_data=chart_data,
+        audit_logs=audit_logs,
         today=today_str,
         selected_month=month,
         current_section=section,
@@ -1782,7 +1949,7 @@ def employee_detail(emp_id):
     today = date.today()
     month = request.args.get('month', today.strftime('%Y-%m'))
     
-    employee = conn.execute("SELECT id, name FROM employees WHERE id=?", (emp_id,)).fetchone()
+    employee = conn.execute("SELECT id, name, avatar FROM employees WHERE id=?", (emp_id,)).fetchone()
     if not employee:
         conn.close()
         return redirect(url_for('index', msg='Сотрудник не найден!'))
@@ -1846,7 +2013,7 @@ def employee_detail(emp_id):
     
     return render_template_string(
         EMPLOYEE_HTML,
-        employee={'id': employee[0], 'name': employee[1]},
+        employee={'id': employee[0], 'name': employee[1], 'avatar': employee[2] or ''},
         logs=logs,
         bonuses=bonuses,
         total_hours=total_hours,
@@ -1913,6 +2080,8 @@ def add_employee():
         conn.execute("INSERT INTO employees (name, password) VALUES (?, ?)", (name, password))
         conn.commit()
         msg = f"Сотрудник {name} добавлен!"
+        # Логируем действие
+        log_audit(session['user_id'], session['user_name'], 'Добавление сотрудника', f'{name}')
     except sqlite3.IntegrityError:
         msg = f"Сотрудник '{name}' уже существует!"
     except Exception as e:
@@ -1928,12 +2097,14 @@ def delete_employee():
     
     emp_id = int(request.form['emp_id'])
     conn = get_db()
+    name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
     try:
         conn.execute("DELETE FROM hours_log WHERE employee_id=?", (emp_id,))
         conn.execute("DELETE FROM fixed_payments WHERE employee_id=?", (emp_id,))
         conn.execute("DELETE FROM employees WHERE id=?", (emp_id,))
         conn.commit()
-        msg = "Сотрудник удалён!"
+        msg = f"Сотрудник {name} удалён!"
+        log_audit(session['user_id'], session['user_name'], 'Удаление сотрудника', f'{name}')
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
@@ -1956,6 +2127,7 @@ def add_event():
         conn.execute("INSERT INTO events (event_date, title, description) VALUES (?, ?, ?)", (event_date, title, description))
         conn.commit()
         msg = f"Мероприятие '{title}' добавлено!"
+        log_audit(session['user_id'], session['user_name'], 'Добавление мероприятия', f'{title} ({format_date_ru(event_date)})')
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
@@ -1969,9 +2141,11 @@ def delete_event():
     event_id = int(request.form['event_id'])
     conn = get_db()
     try:
+        title = conn.execute("SELECT title FROM events WHERE id=?", (event_id,)).fetchone()[0]
         conn.execute("DELETE FROM events WHERE id=?", (event_id,))
         conn.commit()
         msg = "Мероприятие удалено!"
+        log_audit(session['user_id'], session['user_name'], 'Удаление мероприятия', f'{title}')
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     conn.close()
@@ -2002,17 +2176,17 @@ def add_hours():
             work_date = str(date.today())
         
         conn = get_db()
+        name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
         conn.execute(
             "INSERT INTO hours_log (employee_id, work_date, hours, rate, konserzhka) VALUES (?, ?, ?, ?, ?)",
             (emp_id, work_date, hours, rate, konserzhka)
         )
         conn.commit()
-        
-        name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
         conn.close()
         
         total = hours * rate + (1500 if konserzhka else 0)
         msg = f"{name} ({format_date_ru(work_date)}): {hours}ч × {rate}₽ = {hours*rate}₽" + (" (+1500 консержка)" if konserzhka else "")
+        log_audit(session['user_id'], session['user_name'], 'Добавление часов', f'{name} — {hours}ч ({format_date_ru(work_date)})')
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     
@@ -2039,27 +2213,57 @@ def add_bonus():
             payment_date = str(date.today())
         
         conn = get_db()
+        name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
         conn.execute(
             "INSERT INTO fixed_payments (employee_id, payment_date, amount, description) VALUES (?, ?, ?, ?)",
             (emp_id, payment_date, amount, description)
         )
         conn.commit()
-        
-        name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
         conn.close()
         
         msg = f"{name}: премия {amount}₽ ({description or 'без описания'})"
+        log_audit(session['user_id'], session['user_name'], 'Добавление премии', f'{name} — {amount}₽')
     except Exception as e:
         msg = f"Ошибка: {str(e)}"
     
     return redirect(url_for('section', section='bonus', msg=msg))
+
+@app.route('/upload_avatar', methods=['POST'])
+def upload_avatar():
+    if not session.get('is_admin'):
+        return redirect(url_for('index', msg='Только админ может менять аватарки!'))
+    
+    emp_id = int(request.form['emp_id'])
+    if 'avatar' not in request.files:
+        return redirect(url_for('index', msg='Файл не выбран!'))
+    
+    file = request.files['avatar']
+    if file.filename == '':
+        return redirect(url_for('index', msg='Файл не выбран!'))
+    
+    if file:
+        # Читаем файл и кодируем в base64
+        file_data = file.read()
+        base64_data = base64.b64encode(file_data).decode('utf-8')
+        
+        conn = get_db()
+        conn.execute("UPDATE employees SET avatar = ? WHERE id = ?", (base64_data, emp_id))
+        conn.commit()
+        name = conn.execute("SELECT name FROM employees WHERE id=?", (emp_id,)).fetchone()[0]
+        conn.close()
+        
+        msg = f"Аватар для {name} обновлён!"
+        log_audit(session['user_id'], session['user_name'], 'Обновление аватара', f'{name}')
+    else:
+        msg = "Ошибка загрузки файла!"
+    
+    return redirect(url_for('section', section='employees', msg=msg))
 
 @app.route('/export')
 def export():
     if session.get('user_id') is None:
         return redirect(url_for('index', msg='Войдите в систему!'))
     
-    # Экспорт только для админа
     if not session.get('is_admin'):
         return redirect(url_for('index', msg='Только администратор может экспортировать данные!'))
     
