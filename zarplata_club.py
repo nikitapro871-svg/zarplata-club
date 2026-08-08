@@ -64,18 +64,19 @@ HTML = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🎵 Зарплата Клуб</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #0a0a1a;
+            background: #0b0b1a;
             min-height: 100vh;
             padding: 20px;
             position: relative;
             overflow-x: hidden;
         }
+        /* КРАСИВЫЙ ФОН С ДИСКО-ШАРАМИ */
         body::before {
             content: '';
             position: fixed;
@@ -84,9 +85,9 @@ HTML = '''
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.15) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.10) 0%, transparent 60%),
-                radial-gradient(ellipse at 50% 100%, rgba(255, 217, 61, 0.08) 0%, transparent 40%);
+                radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.2) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 50% 100%, rgba(255, 217, 61, 0.1) 0%, transparent 40%);
             z-index: 0;
             pointer-events: none;
         }
@@ -95,556 +96,534 @@ HTML = '''
             border-radius: 50%;
             pointer-events: none;
             z-index: 0;
-            opacity: 0.08;
+            opacity: 0.1;
         }
         .disco-ball.d1 { width: 400px; height: 400px; top: -100px; right: -100px; background: radial-gradient(circle, #9d4edd, transparent); animation: pulseGlow 8s ease-in-out infinite; }
         .disco-ball.d2 { width: 500px; height: 500px; bottom: -150px; left: -150px; background: radial-gradient(circle, #ff6b6b, transparent); animation: pulseGlow 10s ease-in-out infinite reverse; }
         .disco-ball.d3 { width: 250px; height: 250px; top: 50%; left: 50%; background: radial-gradient(circle, #ffd93d, transparent); transform: translate(-50%, -50%); animation: pulseGlow 6s ease-in-out infinite; }
         @keyframes pulseGlow {
             0%, 100% { opacity: 0.05; transform: scale(1); }
-            50% { opacity: 0.12; transform: scale(1.1); }
+            50% { opacity: 0.15; transform: scale(1.1); }
         }
+        
         .container {
             max-width: 1300px;
             margin: 0 auto;
-            background: rgba(255,255,255,0.96);
-            border-radius: 30px;
-            padding: 30px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.7);
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: 40px;
+            padding: 35px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
             animation: slideIn 0.6s ease;
             position: relative;
             z-index: 1;
-            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.08);
         }
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-50px) scale(0.95); }
+            from { opacity: 0; transform: translateY(-40px) scale(0.96); }
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
-        }
+        
         .header {
             text-align: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid rgba(157, 78, 221, 0.15);
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
             position: relative;
         }
-        .header .logo {
-            font-size: 50px;
-            display: block;
-            animation: floatIcon 4s ease-in-out infinite;
+        .header .logo { font-size: 60px; display: block; animation: floatIcon 4s ease-in-out infinite; }
+        @keyframes floatIcon {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(4deg); }
         }
         h1 {
-            font-size: 2.8em;
+            font-size: 3em;
             font-weight: 900;
-            background: linear-gradient(135deg, #9d4edd 0%, #ff6b6b 50%, #ffd93d 100%);
+            background: linear-gradient(135deg, #c084fc 0%, #f472b6 40%, #fcd34d 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 3px;
-            letter-spacing: 4px;
+            margin-bottom: 5px;
+            letter-spacing: 5px;
             text-transform: uppercase;
+            text-shadow: 0 0 40px rgba(192, 132, 252, 0.2);
         }
         .subtitle {
-            color: #888;
-            font-size: 1.05em;
-            font-weight: 400;
+            color: rgba(255,255,255,0.6);
+            font-size: 1.1em;
+            font-weight: 300;
         }
-        .subtitle span { color: #9d4edd; font-weight: 700; }
+        .subtitle span { color: #c084fc; font-weight: 600; }
         
-        /* ===== КНОПКА ВЫХОДА (МАЛЕНЬКАЯ, НЕ МЕШАЕТ) ===== */
+        /* КНОПКА ВЫХОДА (СТИЛЬНАЯ) */
         .logout-icon {
             position: absolute;
             top: 0;
             right: 0;
             font-size: 20px;
-            color: #ff6b6b;
+            color: rgba(255,255,255,0.4);
             text-decoration: none;
             padding: 8px 12px;
-            border-radius: 12px;
+            border-radius: 50%;
             transition: 0.3s;
-            background: rgba(255,107,107,0.08);
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.05);
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .logout-icon:hover {
             background: rgba(255,107,107,0.2);
-            transform: scale(1.1);
-        }
-        .logout-icon i {
-            margin-right: 4px;
+            color: #ff6b6b;
+            border-color: rgba(255,107,107,0.3);
+            transform: rotate(90deg);
         }
         
-        /* ===== ГЛАВНОЕ МЕНЮ ===== */
+        /* КАРТОЧКИ МЕНЮ (СТЕКЛЯННЫЕ) */
         .main-menu {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 18px;
+            margin: 35px 0;
         }
         .menu-card {
-            background: linear-gradient(135deg, #9d4edd15 0%, #ff6b6b15 100%);
-            padding: 30px 20px;
-            border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.06);
+            padding: 28px 16px;
+            border-radius: 24px;
             text-align: center;
-            border: 2px solid rgba(157, 78, 221, 0.15);
-            transition: all 0.3s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
             text-decoration: none;
-            color: #333;
+            color: #fff;
             display: block;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
         .menu-card:hover {
             transform: translateY(-8px) scale(1.02);
-            box-shadow: 0 12px 40px rgba(157, 78, 221, 0.25);
-            border-color: #9d4edd;
+            box-shadow: 0 20px 40px rgba(157, 78, 221, 0.25);
+            border-color: rgba(157, 78, 221, 0.3);
+            background: rgba(255,255,255,0.08);
         }
-        .menu-card .icon {
-            font-size: 40px;
-            display: block;
-            margin-bottom: 10px;
-            color: #9d4edd;
-        }
-        .menu-card .title {
-            font-size: 17px;
-            font-weight: 700;
-            color: #333;
-        }
-        .menu-card .desc {
-            font-size: 12px;
-            color: #888;
-            margin-top: 5px;
-        }
-        .menu-card.events {
-            background: linear-gradient(135deg, #ffd93d15 0%, #ff6b6b15 100%);
-            border-color: rgba(255, 217, 61, 0.3);
-        }
-        .menu-card.events:hover {
-            border-color: #ffd93d;
-            box-shadow: 0 12px 40px rgba(255, 217, 61, 0.25);
-        }
-        .menu-card.events .icon { color: #f6b93b; }
+        .menu-card .icon { font-size: 38px; display: block; margin-bottom: 12px; color: #c084fc; }
+        .menu-card .title { font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+        .menu-card .desc { font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 4px; }
+        .menu-card.events .icon { color: #fcd34d; }
+        .menu-card.events:hover { border-color: rgba(252, 211, 77, 0.3); box-shadow: 0 20px 40px rgba(252, 211, 77, 0.15); }
         .menu-card.add .icon { color: #6bcb77; }
+        .menu-card.add:hover { border-color: rgba(107, 203, 119, 0.3); box-shadow: 0 20px 40px rgba(107, 203, 119, 0.15); }
         
-        /* ===== КАЛЕНДАРЬ МЕРОПРИЯТИЙ ===== */
-        .calendar-grid {
+        /* СТАТИСТИКА */
+        .stats-grid {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
-            gap: 4px;
-            margin: 15px 0;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 12px;
+            margin-bottom: 25px;
         }
-        .calendar-day {
-            background: white;
-            padding: 8px 4px;
-            border-radius: 10px;
+        .stat-card {
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 16px 10px;
+            border-radius: 20px;
             text-align: center;
-            min-height: 60px;
-            border: 1px solid #eee;
-            position: relative;
             transition: 0.3s;
         }
-        .calendar-day:hover {
-            border-color: #9d4edd;
-            box-shadow: 0 2px 12px rgba(157, 78, 221, 0.15);
+        .stat-card:hover {
+            background: rgba(255,255,255,0.07);
+            transform: translateY(-3px);
+            border-color: rgba(157, 78, 221, 0.15);
         }
-        .calendar-day .day-num {
-            font-weight: 700;
-            font-size: 14px;
-            color: #333;
+        .stat-card .number {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
-        .calendar-day .day-event {
-            font-size: 10px;
-            background: #ffd93d30;
-            color: #856404;
-            border-radius: 8px;
-            padding: 2px 6px;
+        .stat-card .label {
+            color: rgba(255,255,255,0.4);
+            font-size: 11px;
+            font-weight: 600;
             margin-top: 4px;
-            display: inline-block;
-            font-weight: 600;
-            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
-        .calendar-day .day-event:hover {
-            background: #ffd93d60;
-        }
-        .calendar-day.weekend .day-num {
-            color: #ff6b6b;
-        }
-        .calendar-day.today {
-            border-color: #9d4edd;
-            background: #f0edff;
-        }
-        .calendar-day .add-event-btn {
-            font-size: 12px;
-            color: #9d4edd;
-            cursor: pointer;
-            display: block;
-            margin-top: 2px;
-        }
-        .calendar-day .add-event-btn:hover {
-            color: #5a189a;
-        }
-        .month-nav {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-        .month-nav .month-title {
-            font-size: 22px;
-            font-weight: 700;
-            color: #333;
-        }
-        .month-nav .btn {
-            padding: 8px 16px;
-            border: none;
-            border-radius: 10px;
-            background: #9d4edd;
-            color: white;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
-        }
-        .month-nav .btn:hover {
-            opacity: 0.8;
-        }
-        .events-list {
-            margin-top: 15px;
-        }
-        .events-list .event-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            background: #f8f6ff;
-            border-radius: 10px;
-            margin-bottom: 6px;
-            border-left: 3px solid #ffd93d;
-        }
-        .events-list .event-item .event-date {
-            font-weight: 600;
-            color: #9d4edd;
-            font-size: 13px;
-        }
-        .events-list .event-item .event-title {
-            font-weight: 600;
-            flex: 1;
-            margin: 0 10px;
-        }
+        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: rgba(255,255,255,0.2); }
         
-        .btn {
-            padding: 11px 24px;
-            border: none;
-            border-radius: 12px;
-            font-size: 14px;
-            font-weight: 700;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: white;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            flex: 0 0 auto;
-        }
-        .btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 8px 25px rgba(0,0,0,0.25); }
-        .btn:active { transform: scale(0.95); }
-        .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #5a189a 100%); }
-        .btn-green { background: linear-gradient(135deg, #6bcb77 0%, #2d8f47 100%); }
-        .btn-gold { background: linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%); color: #333; }
-        .btn-red { background: linear-gradient(135deg, #ff6b6b 0%, #c0392b 100%); }
-        .btn-sm { padding: 6px 14px; font-size: 12px; }
-        
+        /* ОБЩИЕ КАРТОЧКИ */
         .card {
-            background: #f8f6ff;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-left: 4px solid #9d4edd;
-            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: 0.3s;
         }
-        .card:hover { border-left-width: 6px; }
+        .card:hover { border-color: rgba(255,255,255,0.08); }
         .card h3 {
-            color: #333;
-            margin-bottom: 12px;
+            color: #fff;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-weight: 700;
             font-size: 1.2em;
+            letter-spacing: 0.5px;
         }
-        .card h3 .icon { font-size: 22px; color: #9d4edd; }
-        .card.green { border-left-color: #6bcb77; }
-        .card.pink { border-left-color: #ff6b6b; }
-        .card.gold { border-left-color: #ffd93d; }
-        .card.blue { border-left-color: #4facfe; }
+        .card h3 .icon { font-size: 22px; color: #c084fc; }
+        .card.green { border-left: 3px solid #6bcb77; }
+        .card.pink { border-left: 3px solid #f472b6; }
+        .card.gold { border-left: 3px solid #fcd34d; }
+        .card.blue { border-left: 3px solid #60a5fa; }
         
         .form-group {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             flex-wrap: wrap;
             align-items: center;
         }
         input, select, textarea {
-            padding: 11px 16px;
-            border: 2px solid #e0ddf0;
-            border-radius: 12px;
+            padding: 12px 18px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
             font-size: 14px;
             font-family: 'Inter', sans-serif;
+            color: #fff;
             transition: all 0.3s ease;
             flex: 1;
             min-width: 120px;
-            background: white;
-        }
-        input:focus, select:focus, textarea:focus {
             outline: none;
-            border-color: #9d4edd;
-            box-shadow: 0 0 0 4px rgba(157, 78, 221, 0.15);
         }
-        input[type="date"] { min-width: 160px; cursor: pointer; }
+        input::placeholder, select { color: rgba(255,255,255,0.3); }
+        input:focus, select:focus {
+            border-color: #c084fc;
+            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.15);
+            background: rgba(255,255,255,0.08);
+        }
+        input[type="date"] { min-width: 160px; cursor: pointer; color: #fff; }
         input[type="checkbox"] {
             width: 22px;
             height: 22px;
             flex: 0 0 auto;
             min-width: unset;
-            accent-color: #9d4edd;
+            accent-color: #c084fc;
             cursor: pointer;
         }
-        .table-wrapper { overflow-x: auto; border-radius: 12px; }
+        label { color: rgba(255,255,255,0.7); font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            flex: 0 0 auto;
+            letter-spacing: 0.3px;
+        }
+        .btn:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
+        .btn:active { transform: scale(0.95); }
+        .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%); }
+        .btn-green { background: linear-gradient(135deg, #6bcb77 0%, #2d8f47 100%); }
+        .btn-gold { background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%); color: #1a1a2e; }
+        .btn-red { background: linear-gradient(135deg, #ff6b6b 0%, #dc2626 100%); }
+        .btn-sm { padding: 8px 16px; font-size: 12px; border-radius: 10px; }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
+            color: rgba(255,255,255,0.9);
         }
         table th {
-            background: linear-gradient(135deg, #9d4edd 0%, #5a189a 100%);
-            color: white;
-            padding: 11px 12px;
+            background: rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.6);
+            padding: 12px 14px;
             text-align: left;
-            font-weight: 700;
-            font-size: 13px;
+            font-weight: 600;
+            font-size: 12px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
         }
         table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #eee;
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
         }
-        table tr { transition: 0.2s; }
-        table tr:hover { background: #f0edff; }
+        table tr:hover td { background: rgba(255,255,255,0.03); }
         .badge {
             display: inline-block;
             padding: 4px 14px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 700;
+            background: rgba(192, 132, 252, 0.15);
+            color: #c084fc;
         }
-        .badge-purple { background: #e8d5f5; color: #6c3483; }
-        .badge-gold { background: #fff3cd; color: #856404; }
-        .badge-green { background: #d4edda; color: #155724; }
+        .badge-gold { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
         .konserzhka-badge {
             display: inline-block;
-            background: #ffd93d30;
-            color: #856404;
-            padding: 3px 12px;
+            background: rgba(252, 211, 77, 0.1);
+            color: #fcd34d;
+            padding: 2px 10px;
             border-radius: 20px;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 600;
         }
         .rate-badge {
             display: inline-block;
-            padding: 3px 12px;
+            padding: 2px 10px;
             border-radius: 20px;
             font-size: 12px;
-            font-weight: 700;
-        }
-        .rate-badge.r400 { background: #d4edda; color: #155724; }
-        .rate-badge.r350 { background: #fff3cd; color: #856404; }
-        .alert {
-            padding: 14px 20px;
-            border-radius: 14px;
-            margin: 12px 0;
-            animation: pulse 2s infinite;
             font-weight: 600;
         }
-        .alert-success { background: #d4edda; color: #155724; border-left: 5px solid #28a745; }
-        .alert-danger { background: #f8d7da; color: #721c24; border-left: 5px solid #dc3545; }
-        .tabs {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
+        .rate-badge.r400 { background: rgba(107, 203, 119, 0.15); color: #6bcb77; }
+        .rate-badge.r350 { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
+        
+        .alert {
+            padding: 14px 20px;
+            border-radius: 16px;
+            margin: 12px 0;
+            font-weight: 600;
+            animation: pulse 2s infinite;
+            border-left: 3px solid;
         }
-        .tab {
-            padding: 10px 22px;
-            border-radius: 25px;
-            background: #f0edff;
-            cursor: pointer;
-            font-weight: 700;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            border: 2px solid transparent;
-            font-family: 'Inter', sans-serif;
-        }
-        .tab:hover:not(.active) { background: #e0dbf5; transform: translateY(-2px); }
-        .tab.active {
-            background: linear-gradient(135deg, #9d4edd 0%, #5a189a 100%);
-            color: white;
-            border-color: #9d4edd;
-            box-shadow: 0 4px 20px rgba(157, 78, 221, 0.3);
-        }
-        .hidden { display: none !important; }
-        .month-selector {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 15px;
-        }
-        .month-selector input[type="month"] {
-            flex: 0 0 auto;
-            min-width: 180px;
-        }
-        .total-row {
-            background: #f0edff !important;
-            font-weight: 700;
-        }
-        .total-row td { border-top: 2px solid #9d4edd; }
-        .clickable-row {
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .clickable-row:hover {
-            background: #e8d5f5 !important;
-            transform: scale(1.01);
-        }
+        .alert-success { background: rgba(107, 203, 119, 0.1); color: #6bcb77; border-color: #6bcb77; }
+        .alert-danger { background: rgba(255, 107, 107, 0.1); color: #ff6b6b; border-color: #ff6b6b; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.8; } }
+        
         .back-link {
             display: inline-block;
-            margin-bottom: 15px;
-            color: #9d4edd;
-            font-weight: 700;
+            margin-bottom: 16px;
+            color: rgba(255,255,255,0.4);
+            font-weight: 600;
             text-decoration: none;
-            font-size: 16px;
+            font-size: 14px;
             transition: 0.3s;
         }
-        .back-link:hover {
-            transform: translateX(-5px);
-            color: #5a189a;
-        }
+        .back-link:hover { color: #c084fc; transform: translateX(-4px); }
+        
         .employee-card {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 16px;
-            background: white;
-            border-radius: 12px;
+            padding: 14px 18px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
             margin-bottom: 8px;
-            border: 1px solid #e0ddf0;
+            border: 1px solid rgba(255,255,255,0.04);
             transition: 0.3s;
+            color: #fff;
         }
         .employee-card:hover {
-            border-color: #9d4edd;
-            box-shadow: 0 4px 15px rgba(157, 78, 221, 0.15);
+            border-color: rgba(157, 78, 221, 0.2);
+            background: rgba(255,255,255,0.05);
         }
-        .employee-card .name {
-            font-weight: 700;
-            font-size: 16px;
-        }
-        .employee-card .stats {
-            color: #888;
-            font-size: 14px;
-        }
-        .employee-card .stats strong {
-            color: #333;
-        }
-        .employee-card .actions {
-            display: flex;
-            gap: 6px;
-        }
+        .employee-card .name { font-weight: 700; font-size: 16px; }
+        .employee-card .stats { color: rgba(255,255,255,0.4); font-size: 14px; }
+        .employee-card .stats strong { color: #fff; }
         .delete-btn {
             background: none;
             border: none;
-            color: #ff6b6b;
-            cursor: pointer;
-            font-size: 18px;
-            transition: 0.3s;
-            padding: 0 5px;
-        }
-        .delete-btn:hover {
-            transform: scale(1.2);
-            color: #c0392b;
-        }
-        .period-group {
-            margin-bottom: 15px;
-        }
-        .period-group h4 {
-            color: #555;
-            margin-bottom: 8px;
-            font-size: 14px;
-            padding: 8px 12px;
-            border-radius: 10px;
-        }
-        .period-group h4.first { background: #d4edda; color: #155724; }
-        .period-group h4.second { background: #fff3cd; color: #856404; }
-        .delete-event {
-            background: none;
-            border: none;
-            color: #ff6b6b;
+            color: rgba(255,255,255,0.2);
             cursor: pointer;
             font-size: 16px;
             transition: 0.3s;
             padding: 0 5px;
         }
-        .delete-event:hover {
-            transform: scale(1.2);
-            color: #c0392b;
-        }
-        .chart-container {
-            background: white;
+        .delete-btn:hover { color: #ff6b6b; transform: scale(1.2); }
+        
+        .period-group h4 {
+            color: rgba(255,255,255,0.5);
+            margin-bottom: 10px;
+            font-size: 14px;
+            padding: 8px 14px;
             border-radius: 12px;
-            padding: 15px;
-            margin-top: 10px;
+            background: rgba(255,255,255,0.03);
+        }
+        .period-group h4.first { border-left: 3px solid #6bcb77; }
+        .period-group h4.second { border-left: 3px solid #fcd34d; }
+        
+        .total-row td { 
+            border-top: 1px solid rgba(255,255,255,0.08);
+            color: #fff !important;
+            font-weight: 700;
+        }
+        
+        /* КАЛЕНДАРЬ */
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            margin: 15px 0;
+        }
+        .calendar-day {
+            background: rgba(255,255,255,0.03);
+            backdrop-filter: blur(4px);
+            padding: 10px 4px;
+            border-radius: 14px;
+            text-align: center;
+            min-height: 70px;
+            border: 1px solid rgba(255,255,255,0.04);
+            transition: 0.3s;
+        }
+        .calendar-day:hover {
+            border-color: rgba(192, 132, 252, 0.2);
+            background: rgba(255,255,255,0.05);
+        }
+        .calendar-day .day-num { font-weight: 700; font-size: 16px; color: #fff; }
+        .calendar-day .day-event {
+            font-size: 10px;
+            background: rgba(252, 211, 77, 0.15);
+            color: #fcd34d;
+            border-radius: 8px;
+            padding: 2px 8px;
+            margin-top: 4px;
+            display: inline-block;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .calendar-day.weekend .day-num { color: rgba(255,107,107,0.5); }
+        .calendar-day.today { border-color: #c084fc; background: rgba(192, 132, 252, 0.05); }
+        .calendar-day .add-event-btn {
+            font-size: 12px;
+            color: rgba(255,255,255,0.2);
+            cursor: pointer;
+            display: block;
+            margin-top: 2px;
+        }
+        .calendar-day .add-event-btn:hover { color: #c084fc; }
+        .month-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .month-nav .month-title { font-size: 22px; font-weight: 700; color: #fff; }
+        
+        .events-list .event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            margin-bottom: 6px;
+            border-left: 3px solid rgba(252, 211, 77, 0.2);
+        }
+        .events-list .event-item .event-date { font-weight: 600; color: rgba(255,255,255,0.4); font-size: 13px; }
+        .events-list .event-item .event-title { font-weight: 600; flex: 1; margin: 0 10px; color: #fff; }
+        
+        .chart-container {
+            background: rgba(255,255,255,0.03);
+            border-radius: 16px;
+            padding: 18px;
+            margin-top: 12px;
+            border: 1px solid rgba(255,255,255,0.04);
         }
         .chart-bar {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
+            gap: 12px;
+            margin-bottom: 10px;
         }
         .chart-bar .bar-label {
             min-width: 80px;
             font-weight: 600;
             font-size: 13px;
-            color: #555;
+            color: rgba(255,255,255,0.6);
         }
         .chart-bar .bar-track {
             flex: 1;
-            height: 24px;
-            background: #f0edff;
-            border-radius: 12px;
+            height: 26px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 14px;
             overflow: hidden;
         }
         .chart-bar .bar-fill {
             height: 100%;
-            border-radius: 12px;
-            background: linear-gradient(90deg, #9d4edd, #ff6b6b);
+            border-radius: 14px;
+            background: linear-gradient(90deg, #9d4edd, #f472b6);
             transition: width 1s ease;
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            padding-right: 8px;
-            color: white;
+            padding-right: 10px;
+            color: #fff;
             font-weight: 700;
             font-size: 12px;
         }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 10px 22px;
+            border-radius: 30px;
+            background: rgba(255,255,255,0.04);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            font-family: 'Inter', sans-serif;
+            color: rgba(255,255,255,0.4);
+        }
+        .tab:hover { background: rgba(255,255,255,0.06); color: #fff; }
+        .tab.active {
+            background: rgba(192, 132, 252, 0.15);
+            color: #c084fc;
+            border-color: rgba(192, 132, 252, 0.2);
+        }
+        .hidden { display: none !important; }
+        
+        .month-selector {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+        .month-selector input[type="month"] {
+            flex: 0 0 auto;
+            min-width: 180px;
+            color: #fff;
+        }
+        
         @media (max-width: 700px) {
-            .container { padding: 15px; }
+            .container { padding: 16px; border-radius: 24px; }
             h1 { font-size: 2em; }
+            .main-menu { grid-template-columns: 1fr 1fr; gap: 12px; }
+            .menu-card { padding: 20px 12px; }
+            .menu-card .icon { font-size: 28px; }
             .form-group { flex-direction: column; }
             .btn { width: 100%; justify-content: center; }
-            .main-menu { grid-template-columns: 1fr 1fr; }
-            .calendar-grid { font-size: 12px; }
-            .calendar-day { min-height: 40px; padding: 4px; }
-            .logout-icon { font-size: 16px; padding: 4px 8px; }
-            .employee-card { flex-direction: column; align-items: stretch; gap: 8px; }
-            .employee-card .actions { justify-content: flex-end; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .calendar-grid { gap: 4px; font-size: 12px; }
+            .calendar-day { min-height: 50px; padding: 4px; }
+            .employee-card { flex-direction: column; align-items: stretch; gap: 6px; }
+            .logout-icon { top: 4px; right: 4px; width: 36px; height: 36px; font-size: 16px; }
+            .header .logo { font-size: 40px; }
         }
     </style>
 </head>
@@ -669,12 +648,12 @@ HTML = '''
 
     {% if session.get('user_id') is none %}
     <!-- ВХОД -->
-    <div class="card" style="border-left-color: #4facfe;">
+    <div class="card" style="border-left: 3px solid #60a5fa;">
         <h3><span class="icon"><i class="fas fa-lock"></i></span> Вход</h3>
         <form method="POST" action="/login" class="form-group">
             <input type="text" name="name" placeholder="Имя" required style="flex:1;">
             <input type="password" name="password" placeholder="Пароль" required style="flex:1;">
-            <button type="submit" class="btn" style="background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"><i class="fas fa-sign-in-alt"></i> Войти</button>
+            <button type="submit" class="btn" style="background:linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);"><i class="fas fa-sign-in-alt"></i> Войти</button>
         </form>
         {% if msg %}
         <div class="alert alert-danger">{{ msg }}</div>
@@ -682,13 +661,15 @@ HTML = '''
     </div>
     {% else %}
     
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:15px;">
-        <div style="font-weight:700;font-size:18px;color:#333;">
-            <i class="fas fa-user" style="color:#9d4edd;"></i> 
-            <span style="color:#9d4edd;">{{ session.user_name }}</span>
-            <span style="font-size:14px;color:#888;font-weight:400;margin-left:10px;">
-                {% if session.is_admin %}<i class="fas fa-crown" style="color:#ffd93d;"></i> Админ{% endif %}
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;margin-bottom:18px;">
+        <div style="font-weight:600;font-size:18px;color:rgba(255,255,255,0.8);">
+            <i class="fas fa-user" style="color:#c084fc;"></i> 
+            <span style="color:#c084fc;font-weight:700;">{{ session.user_name }}</span>
+            {% if session.is_admin %}
+            <span style="font-size:13px;color:rgba(255,255,255,0.3);margin-left:10px;">
+                <i class="fas fa-crown" style="color:#fcd34d;"></i> Админ
             </span>
+            {% endif %}
         </div>
     </div>
 
@@ -729,36 +710,42 @@ HTML = '''
         {% endif %}
     </div>
 
-    <!-- ДАШБОРД (статистика) -->
+    <!-- ДАШБОРД -->
     <div class="card">
         <h3><span class="icon"><i class="fas fa-chart-bar"></i></span> Статистика месяца</h3>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:15px;">
-            <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;"><i class="fas fa-users"></i> Сотрудников</div>
-                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_employees }}</div>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="icon"><i class="fas fa-users"></i></span>
+                <div class="number">{{ stats.total_employees }}</div>
+                <div class="label">Сотрудников</div>
             </div>
-            <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;"><i class="fas fa-clock"></i> Часов</div>
-                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_hours|round(1) }}</div>
+            <div class="stat-card">
+                <span class="icon"><i class="fas fa-clock"></i></span>
+                <div class="number">{{ stats.total_hours|round(1) }}</div>
+                <div class="label">Часов</div>
             </div>
-            <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;"><i class="fas fa-ruble-sign"></i> Зарплата</div>
-                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_salary|round(0) }} ₽</div>
+            <div class="stat-card">
+                <span class="icon"><i class="fas fa-ruble-sign"></i></span>
+                <div class="number">{{ stats.total_salary|round(0) }}</div>
+                <div class="label">Зарплата</div>
             </div>
-            <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;"><i class="fas fa-utensils"></i> Консержек</div>
-                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.total_konserzhka }}</div>
+            <div class="stat-card">
+                <span class="icon"><i class="fas fa-utensils"></i></span>
+                <div class="number">{{ stats.total_konserzhka }}</div>
+                <div class="label">Консержек</div>
             </div>
-            <div style="background:white;padding:12px;border-radius:12px;text-align:center;border:1px solid #e0ddf0;">
-                <div style="font-size:12px;color:#888;"><i class="fas fa-gem"></i> ИТОГО</div>
-                <div style="font-size:22px;font-weight:800;color:#9d4edd;">{{ stats.grand_total|round(0) }} ₽</div>
+            <div class="stat-card">
+                <span class="icon"><i class="fas fa-gem"></i></span>
+                <div class="number">{{ stats.grand_total|round(0) }}</div>
+                <div class="label">ИТОГО</div>
             </div>
         </div>
         
-        <!-- График по сотрудникам -->
         {% if chart_data %}
         <div class="chart-container">
-            <h4 style="margin-bottom:10px;"><i class="fas fa-chart-simple" style="color:#9d4edd;"></i> Часы по сотрудникам</h4>
+            <h4 style="margin-bottom:12px;color:rgba(255,255,255,0.4);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
+                <i class="fas fa-chart-simple" style="color:#c084fc;"></i> Часы по сотрудникам
+            </h4>
             {% for item in chart_data %}
             <div class="chart-bar">
                 <div class="bar-label">{{ item.name }}</div>
@@ -776,25 +763,22 @@ HTML = '''
 
     <!-- ===== РАЗДЕЛЫ ===== -->
     {% if current_section == 'employees' %}
-    <!-- СОТРУДНИКИ -->
     <div class="card">
         <h3><span class="icon"><i class="fas fa-users"></i></span> Все сотрудники</h3>
-        <p style="color:#888;margin-bottom:12px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
+        <p style="color:rgba(255,255,255,0.3);margin-bottom:14px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         {% if employees %}
         {% for emp in employees %}
-        <div class="employee-card">
-            <div class="name" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;flex:1;">
-                {{ emp.name }}
-            </div>
+        <div class="employee-card" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;">
+            <div class="name">{{ emp.name }}</div>
             <div class="stats">
-                <i class="fas fa-clock" style="color:#9d4edd;"></i> <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
-                <i class="fas fa-utensils" style="color:#f6b93b;"></i> <strong>{{ emp.month_konserzhka }}</strong> · 
+                <i class="fas fa-clock" style="color:#c084fc;"></i> <strong>{{ emp.month_hours|round(1) }}</strong> ч · 
+                <i class="fas fa-utensils" style="color:#fcd34d;"></i> <strong>{{ emp.month_konserzhka }}</strong> · 
                 <i class="fas fa-ruble-sign" style="color:#6bcb77;"></i> <strong>{{ emp.month_total|round(0) }}</strong> ₽
             </div>
             <div class="actions">
                 {% if session.is_admin %}
-                <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')">
+                <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')" onclick="event.stopPropagation();">
                     <input type="hidden" name="emp_id" value="{{ emp.id }}">
                     <button type="submit" class="delete-btn" title="Удалить сотрудника"><i class="fas fa-trash"></i></button>
                 </form>
@@ -803,13 +787,12 @@ HTML = '''
         </div>
         {% endfor %}
         {% else %}
-        <p style="text-align:center;color:#999;padding:20px;"><i class="fas fa-face-frown"></i> Нет сотрудников</p>
+        <p style="text-align:center;color:rgba(255,255,255,0.2);padding:30px;"><i class="fas fa-face-frown"></i> Нет сотрудников</p>
         {% endif %}
     </div>
     {% endif %}
 
     {% if current_section == 'events' %}
-    <!-- МЕРОПРИЯТИЯ (КАЛЕНДАРЬ) -->
     <div class="card gold">
         <h3><span class="icon"><i class="fas fa-calendar-alt"></i></span> Календарь мероприятий</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
@@ -821,13 +804,13 @@ HTML = '''
         </div>
         
         <div class="calendar-grid">
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Пн</div>
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Вт</div>
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Ср</div>
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Чт</div>
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Пт</div>
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Сб</div>
-            <div style="font-weight:700;color:#888;text-align:center;font-size:12px;">Вс</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Пн</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Вт</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Ср</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Чт</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Пт</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Сб</div>
+            <div style="font-weight:700;color:rgba(255,255,255,0.2);text-align:center;font-size:11px;text-transform:uppercase;">Вс</div>
             
             {% for day in calendar_days %}
             <div class="calendar-day{% if day.is_weekend %} weekend{% endif %}{% if day.is_today %} today{% endif %}">
@@ -844,10 +827,9 @@ HTML = '''
             {% endfor %}
         </div>
         
-        <!-- Добавление события -->
         {% if session.is_admin %}
-        <div style="margin-top:15px;padding-top:15px;border-top:1px solid #eee;">
-            <h4><i class="fas fa-plus-circle" style="color:#9d4edd;"></i> Добавить мероприятие</h4>
+        <div style="margin-top:18px;padding-top:18px;border-top:1px solid rgba(255,255,255,0.05);">
+            <h4 style="color:rgba(255,255,255,0.6);margin-bottom:12px;"><i class="fas fa-plus-circle" style="color:#fcd34d;"></i> Добавить мероприятие</h4>
             <form method="POST" action="/add_event" class="form-group">
                 <input type="date" name="event_date" value="{{ today }}" required>
                 <input type="text" name="title" placeholder="Название" required>
@@ -857,39 +839,39 @@ HTML = '''
         </div>
         {% endif %}
         
-        <!-- Список всех событий -->
         <div class="events-list">
-            <h4 style="margin:15px 0 10px;"><i class="fas fa-list" style="color:#9d4edd;"></i> Все события месяца</h4>
+            <h4 style="margin:18px 0 12px;color:rgba(255,255,255,0.3);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
+                <i class="fas fa-list" style="color:#fcd34d;"></i> Все события месяца
+            </h4>
             {% if events %}
             {% for event in events %}
             <div class="event-item">
                 <span class="event-date"><i class="far fa-calendar"></i> {{ event.date_ru }}</span>
                 <span class="event-title">{{ event.title }}</span>
-                <span style="font-size:13px;color:#888;">{{ event.description or '' }}</span>
+                <span style="font-size:13px;color:rgba(255,255,255,0.3);">{{ event.description or '' }}</span>
                 {% if session.is_admin %}
                 <form method="POST" action="/delete_event" style="display:inline;" onsubmit="return confirm('Удалить мероприятие?')">
                     <input type="hidden" name="event_id" value="{{ event.id }}">
-                    <button type="submit" class="delete-event" title="Удалить"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="delete-event" style="background:none;border:none;color:rgba(255,255,255,0.2);cursor:pointer;transition:0.3s;padding:0 5px;" onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='rgba(255,255,255,0.2)'"><i class="fas fa-trash"></i></button>
                 </form>
                 {% endif %}
             </div>
             {% endfor %}
             {% else %}
-            <p style="color:#999;text-align:center;padding:10px;"><i class="far fa-calendar-alt"></i> Нет событий на этот месяц</p>
+            <p style="color:rgba(255,255,255,0.2);text-align:center;padding:16px;"><i class="far fa-calendar-alt"></i> Нет событий на этот месяц</p>
             {% endif %}
         </div>
     </div>
     {% endif %}
 
     {% if current_section == 'hours' %}
-    <!-- ЧАСЫ -->
     <div class="card pink">
         <h3><span class="icon"><i class="fas fa-clock"></i></span> Все часы по дням</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-selector">
-            <form method="GET" action="/section/hours" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <form method="GET" action="/section/hours" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
-                <button type="submit" class="btn btn-purple btn-sm"><i class="fas fa-search"></i> Показать</button>
+                <button type="submit" class="btn btn-sm btn-purple"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
         {% if all_logs %}
@@ -899,35 +881,34 @@ HTML = '''
                 {% for log in all_logs %}
                 <tr>
                     <td>{{ log.date_ru }}</td>
-                    <td><span class="badge badge-purple">{{ log.employee }}</span></td>
+                    <td><span class="badge">{{ log.employee }}</span></td>
                     <td>{{ log.hours }}</td>
                     <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
-                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500 ₽{% else %}—{% endif %}</td>
+                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500 ₽{% else %}—{% endif %}</td>
                     <td><strong>{{ log.total }} ₽</strong></td>
                 </tr>
                 {% endfor %}
             </table>
         </div>
         {% if session.is_admin %}
-        <div style="margin-top:10px;">
+        <div style="margin-top:14px;">
             <a href="/export?month={{ selected_month }}" class="btn btn-green"><i class="fas fa-file-excel"></i> Скачать Excel</a>
         </div>
         {% endif %}
         {% else %}
-        <p style="text-align:center;color:#999;padding:20px;"><i class="fas fa-inbox"></i> Нет записей</p>
+        <p style="text-align:center;color:rgba(255,255,255,0.2);padding:30px;"><i class="fas fa-inbox"></i> Нет записей</p>
         {% endif %}
     </div>
     {% endif %}
 
     {% if current_section == 'payments' %}
-    <!-- ВЫПЛАТЫ -->
     <div class="card gold">
         <h3><span class="icon"><i class="fas fa-money-bill-wave"></i></span> Выплаты по периодам</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         <div class="month-selector">
-            <form method="GET" action="/section/payments" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <form method="GET" action="/section/payments" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
-                <button type="submit" class="btn btn-purple btn-sm"><i class="fas fa-search"></i> Показать</button>
+                <button type="submit" class="btn btn-sm btn-purple"><i class="fas fa-search"></i> Показать</button>
             </form>
         </div>
         
@@ -940,10 +921,10 @@ HTML = '''
                     {% for p in payments.first %}
                     <tr>
                         <td>{{ p.date_ru }}</td>
-                        <td><span class="badge badge-purple">{{ p.employee }}</span></td>
+                        <td><span class="badge">{{ p.employee }}</span></td>
                         <td>{{ p.hours }}</td>
                         <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
-                        <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500{% else %}—{% endif %}</td>
+                        <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500{% else %}—{% endif %}</td>
                         <td><strong>{{ p.total }} ₽</strong></td>
                     </tr>
                     {% endfor %}
@@ -954,7 +935,7 @@ HTML = '''
                 </table>
             </div>
             {% else %}
-            <p style="color:#999;font-size:13px;">Нет записей за этот период</p>
+            <p style="color:rgba(255,255,255,0.2);font-size:14px;padding:8px 0;">Нет записей за этот период</p>
             {% endif %}
         </div>
         
@@ -967,10 +948,10 @@ HTML = '''
                     {% for p in payments.second %}
                     <tr>
                         <td>{{ p.date_ru }}</td>
-                        <td><span class="badge badge-purple">{{ p.employee }}</span></td>
+                        <td><span class="badge">{{ p.employee }}</span></td>
                         <td>{{ p.hours }}</td>
                         <td><span class="rate-badge r{{ p.rate|int }}">{{ p.rate }} ₽/ч</span></td>
-                        <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500{% else %}—{% endif %}</td>
+                        <td>{% if p.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500{% else %}—{% endif %}</td>
                         <td><strong>{{ p.total }} ₽</strong></td>
                     </tr>
                     {% endfor %}
@@ -981,19 +962,18 @@ HTML = '''
                 </table>
             </div>
             {% else %}
-            <p style="color:#999;font-size:13px;">Нет записей за этот период</p>
+            <p style="color:rgba(255,255,255,0.2);font-size:14px;padding:8px 0;">Нет записей за этот период</p>
             {% endif %}
         </div>
     </div>
     {% endif %}
 
     {% if current_section == 'bonus' %}
-    <!-- ПРЕМИИ -->
-    <div class="card" style="border-left-color: #ffd93d;">
+    <div class="card" style="border-left: 3px solid #fcd34d;">
         <h3><span class="icon"><i class="fas fa-gift"></i></span> Премии</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         {% if session.is_admin %}
-        <form method="POST" action="/add_bonus" class="form-group" style="margin-bottom:15px;">
+        <form method="POST" action="/add_bonus" class="form-group" style="margin-bottom:18px;">
             <select name="emp_id" required>
                 <option value="">Выберите сотрудника</option>
                 {% for emp in employees %}
@@ -1003,7 +983,7 @@ HTML = '''
             <input type="number" name="amount" placeholder="Сумма ₽" step="0.1" required>
             <input type="text" name="description" placeholder="Описание">
             <input type="date" name="payment_date" value="{{ today }}">
-            <button type="submit" class="btn" style="background:linear-gradient(135deg, #ffd93d 0%, #f6b93b 100%);color:#333;"><i class="fas fa-plus"></i> Добавить</button>
+            <button type="submit" class="btn btn-gold"><i class="fas fa-plus"></i> Добавить</button>
         </form>
         {% endif %}
         {% if all_bonuses %}
@@ -1021,13 +1001,12 @@ HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:#999;"><i class="fas fa-gift"></i> Пока нет премий</p>
+        <p style="color:rgba(255,255,255,0.2);"><i class="fas fa-gift"></i> Пока нет премий</p>
         {% endif %}
     </div>
     {% endif %}
 
     {% if current_section == 'add' and session.is_admin %}
-    <!-- ДОБАВИТЬ -->
     <div class="card green">
         <h3><span class="icon"><i class="fas fa-user-plus"></i></span> Новый сотрудник</h3>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
@@ -1038,7 +1017,7 @@ HTML = '''
         </form>
     </div>
     
-    <div class="card" style="border-left-color: #6bcb77;">
+    <div class="card" style="border-left: 3px solid #6bcb77;">
         <h3><span class="icon"><i class="fas fa-clock"></i></span> Добавить часы сотруднику</h3>
         <form method="POST" action="/add_hours" class="form-group">
             <select name="emp_id" required style="flex:1;">
@@ -1055,7 +1034,7 @@ HTML = '''
             </select>
             <label style="white-space:nowrap;">
                 <input type="checkbox" name="konserzhka" value="1">
-                <i class="fas fa-utensils" style="color:#f6b93b;"></i> Консержка (+1500)
+                <i class="fas fa-utensils" style="color:#fcd34d;"></i> Консержка (+1500)
             </label>
             <button type="submit" class="btn btn-green"><i class="fas fa-plus"></i> Добавить</button>
         </form>
@@ -1113,13 +1092,13 @@ EMPLOYEE_HTML = '''
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ employee.name }} — Зарплата Клуб</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
-            background: #0a0a1a;
+            background: #0b0b1a;
             min-height: 100vh;
             padding: 20px;
             position: relative;
@@ -1133,24 +1112,26 @@ EMPLOYEE_HTML = '''
             right: 0;
             bottom: 0;
             background: 
-                radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.12) 0%, transparent 60%),
-                radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.08) 0%, transparent 60%);
+                radial-gradient(ellipse at 20% 50%, rgba(157, 78, 221, 0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 50%, rgba(255, 107, 107, 0.1) 0%, transparent 60%);
             z-index: 0;
             pointer-events: none;
         }
         .container {
             max-width: 1000px;
             margin: 0 auto;
-            background: rgba(255,255,255,0.97);
-            border-radius: 30px;
-            padding: 30px;
-            box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(20px);
+            border-radius: 40px;
+            padding: 35px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
             position: relative;
             z-index: 1;
+            border: 1px solid rgba(255,255,255,0.05);
             animation: slideIn 0.6s ease;
         }
         @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-50px) scale(0.95); }
+            from { opacity: 0; transform: translateY(-40px) scale(0.96); }
             to { opacity: 1; transform: translateY(0) scale(1); }
         }
         .header {
@@ -1158,130 +1139,138 @@ EMPLOYEE_HTML = '''
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         .header h1 {
             font-size: 2.2em;
             font-weight: 900;
-            background: linear-gradient(135deg, #9d4edd 0%, #ff6b6b 50%, #ffd93d 100%);
+            background: linear-gradient(135deg, #c084fc 0%, #f472b6 50%, #fcd34d 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .back-link {
-            color: #9d4edd;
-            font-weight: 700;
+            color: rgba(255,255,255,0.4);
+            font-weight: 600;
             text-decoration: none;
-            font-size: 16px;
+            font-size: 15px;
             transition: 0.3s;
-            display: inline-block;
         }
-        .back-link:hover { transform: translateX(-5px); color: #5a189a; }
+        .back-link:hover { color: #c084fc; transform: translateX(-4px); }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
             gap: 12px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
         .stat-card {
-            background: linear-gradient(135deg, #9d4edd10 0%, #ff6b6b10 100%);
-            padding: 15px;
-            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 16px;
+            border-radius: 20px;
             text-align: center;
-            border: 1px solid rgba(157, 78, 221, 0.15);
+            transition: 0.3s;
+        }
+        .stat-card:hover {
+            background: rgba(255,255,255,0.06);
+            transform: translateY(-3px);
         }
         .stat-card .number {
-            font-size: 26px;
+            font-size: 24px;
             font-weight: 800;
-            background: linear-gradient(135deg, #9d4edd 0%, #ff6b6b 100%);
+            background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-        .stat-card .label { color: #888; font-size: 12px; font-weight: 600; }
-        .stat-card .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+        .stat-card .label { color: rgba(255,255,255,0.3); font-size: 11px; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: rgba(255,255,255,0.1); }
         .card {
-            background: #f8f6ff;
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 20px;
-            border-left: 4px solid #9d4edd;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 24px;
+            padding: 24px;
+            margin-bottom: 24px;
+            transition: 0.3s;
         }
+        .card:hover { border-color: rgba(255,255,255,0.07); }
         .card h3 {
-            color: #333;
-            margin-bottom: 12px;
+            color: #fff;
+            margin-bottom: 14px;
             font-weight: 700;
-            font-size: 1.2em;
+            font-size: 1.1em;
         }
+        .card h3 i { color: #c084fc; margin-right: 10px; }
         .month-selector {
             display: flex;
-            gap: 10px;
+            gap: 12px;
             align-items: center;
             flex-wrap: wrap;
-            margin-bottom: 15px;
+            margin-bottom: 16px;
         }
         .month-selector input[type="month"] {
-            padding: 10px 14px;
-            border: 2px solid #e0ddf0;
-            border-radius: 12px;
+            padding: 10px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px;
             font-size: 14px;
             font-family: 'Inter', sans-serif;
+            color: #fff;
             min-width: 180px;
+            outline: none;
         }
         .month-selector input[type="month"]:focus {
-            outline: none;
-            border-color: #9d4edd;
-            box-shadow: 0 0 0 4px rgba(157, 78, 221, 0.15);
+            border-color: #c084fc;
+            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.1);
         }
         .btn {
             padding: 10px 20px;
             border: none;
-            border-radius: 12px;
+            border-radius: 14px;
             font-size: 14px;
             font-weight: 700;
             font-family: 'Inter', sans-serif;
             cursor: pointer;
             transition: all 0.3s ease;
-            color: white;
+            color: #fff;
         }
-        .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 8px 25px rgba(0,0,0,0.2); }
-        .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #5a189a 100%); }
-        .table-wrapper { overflow-x: auto; }
+        .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
+        .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%); }
+        .table-wrapper { overflow-x: auto; border-radius: 16px; border: 1px solid rgba(255,255,255,0.04); }
         table {
             width: 100%;
             border-collapse: collapse;
             font-size: 14px;
+            color: rgba(255,255,255,0.85);
         }
         table th {
-            background: linear-gradient(135deg, #9d4edd 0%, #5a189a 100%);
-            color: white;
-            padding: 10px 12px;
+            background: rgba(255,255,255,0.04);
+            color: rgba(255,255,255,0.4);
+            padding: 12px 14px;
             text-align: left;
-            font-weight: 700;
-            font-size: 13px;
+            font-weight: 600;
+            font-size: 12px;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
         table td {
-            padding: 9px 12px;
-            border-bottom: 1px solid #eee;
+            padding: 11px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
         }
-        table tr:hover { background: #f0edff; }
-        .badge-purple { background: #e8d5f5; color: #6c3483; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; display: inline-block; }
-        .rate-badge { display: inline-block; padding: 3px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-        .rate-badge.r400 { background: #d4edda; color: #155724; }
-        .rate-badge.r350 { background: #fff3cd; color: #856404; }
-        .total-row {
-            background: #f0edff !important;
-            font-weight: 700;
-        }
-        .total-row td { border-top: 2px solid #9d4edd; }
+        table tr:hover td { background: rgba(255,255,255,0.02); }
+        .badge-purple { background: rgba(192, 132, 252, 0.15); color: #c084fc; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+        .rate-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+        .rate-badge.r400 { background: rgba(107, 203, 119, 0.15); color: #6bcb77; }
+        .rate-badge.r350 { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
+        .total-row td { border-top: 1px solid rgba(255,255,255,0.08); color: #fff !important; font-weight: 700; }
         .alert {
             padding: 14px 20px;
-            border-radius: 14px;
+            border-radius: 16px;
             margin: 12px 0;
             font-weight: 600;
+            border-left: 3px solid;
         }
-        .alert-success { background: #d4edda; color: #155724; border-left: 5px solid #28a745; }
+        .alert-success { background: rgba(107, 203, 119, 0.08); color: #6bcb77; border-color: #6bcb77; }
         @media (max-width: 700px) {
-            .container { padding: 15px; }
+            .container { padding: 16px; border-radius: 24px; }
             .header h1 { font-size: 1.6em; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -1290,22 +1279,22 @@ EMPLOYEE_HTML = '''
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-user" style="color:#9d4edd;"></i> {{ employee.name }}</h1>
+        <h1><i class="fas fa-user" style="color:#c084fc;"></i> {{ employee.name }}</h1>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Назад</a>
     </div>
 
     <div class="stats-grid">
         <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ total_hours|round(1) }}</div><div class="label">Часов</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ total_salary|round(0) }} ₽</div><div class="label">По часам</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ total_salary|round(0) }}</div><div class="label">Зарплата</div></div>
         <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ total_konserzhka }}</div><div class="label">Консержек</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-gift"></i></span><div class="number">{{ total_bonus|round(0) }} ₽</div><div class="label">Премии</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ grand_total|round(0) }} ₽</div><div class="label">ИТОГО</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-gift"></i></span><div class="number">{{ total_bonus|round(0) }}</div><div class="label">Премии</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ grand_total|round(0) }}</div><div class="label">ИТОГО</div></div>
     </div>
 
     <div class="card">
-        <h3><i class="fas fa-calendar-day" style="color:#9d4edd;"></i> Детали по дням</h3>
+        <h3><i class="fas fa-calendar-day"></i> Детали по дням</h3>
         <div class="month-selector">
-            <form method="GET" action="/employee/{{ employee.id }}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <form method="GET" action="/employee/{{ employee.id }}" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
                 <input type="month" name="month" value="{{ selected_month }}">
                 <button type="submit" class="btn btn-purple"><i class="fas fa-search"></i> Показать</button>
             </form>
@@ -1319,7 +1308,7 @@ EMPLOYEE_HTML = '''
                     <td>{{ log.date_ru }}</td>
                     <td>{{ log.hours }}</td>
                     <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
-                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#f6b93b;"></i> +1500 ₽{% else %}—{% endif %}</td>
+                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500 ₽{% else %}—{% endif %}</td>
                     <td><strong>{{ log.total }} ₽</strong></td>
                 </tr>
                 {% endfor %}
@@ -1333,12 +1322,12 @@ EMPLOYEE_HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:#999;"><i class="fas fa-inbox"></i> Нет записей за этот месяц</p>
+        <p style="color:rgba(255,255,255,0.2);"><i class="fas fa-inbox"></i> Нет записей за этот месяц</p>
         {% endif %}
     </div>
 
-    <div class="card" style="border-left-color: #ffd93d;">
-        <h3><i class="fas fa-gift" style="color:#ffd93d;"></i> Премии</h3>
+    <div class="card" style="border-left: 3px solid #fcd34d;">
+        <h3><i class="fas fa-gift" style="color:#fcd34d;"></i> Премии</h3>
         {% if bonuses %}
         <div class="table-wrapper">
             <table>
@@ -1353,7 +1342,7 @@ EMPLOYEE_HTML = '''
             </table>
         </div>
         {% else %}
-        <p style="color:#999;"><i class="fas fa-gift"></i> Нет премий</p>
+        <p style="color:rgba(255,255,255,0.2);"><i class="fas fa-gift"></i> Нет премий</p>
         {% endif %}
     </div>
 
@@ -1930,7 +1919,6 @@ def add_employee():
         msg = f"Ошибка: {str(e)}"
     conn.close()
     
-    # Возвращаемся в тот же раздел, а не на главную
     return redirect(url_for('section', section='add', msg=msg))
 
 @app.route('/delete_employee', methods=['POST'])
