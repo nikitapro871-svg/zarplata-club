@@ -16,7 +16,6 @@ def get_db():
     conn = sqlite3.connect(db_path, check_same_thread=False)
     cur = conn.cursor()
     
-    # Сотрудники (добавлено поле avatar)
     cur.execute('''CREATE TABLE IF NOT EXISTS employees 
                    (id INTEGER PRIMARY KEY, name TEXT UNIQUE, password TEXT, is_admin INTEGER DEFAULT 0, avatar TEXT DEFAULT '')''')
     
@@ -33,7 +32,13 @@ def get_db():
     cur.execute('''CREATE TABLE IF NOT EXISTS events 
                    (id INTEGER PRIMARY KEY, event_date TEXT, title TEXT, description TEXT)''')
     
-    # === ТАБЛИЦА АУДИТА ===
+    # === ЧАТ ===
+    cur.execute('''CREATE TABLE IF NOT EXISTS messages 
+                   (id INTEGER PRIMARY KEY, from_id INTEGER, to_id INTEGER, message TEXT, date TEXT, is_read INTEGER DEFAULT 0,
+                    FOREIGN KEY(from_id) REFERENCES employees(id),
+                    FOREIGN KEY(to_id) REFERENCES employees(id))''')
+    
+    # === АУДИТ ===
     cur.execute('''CREATE TABLE IF NOT EXISTS audit_log 
                    (id INTEGER PRIMARY KEY, admin_id INTEGER, admin_name TEXT,
                     action_type TEXT, action_details TEXT, action_date TEXT,
@@ -53,7 +58,7 @@ def log_audit(admin_id, admin_name, action_type, action_details):
     conn.commit()
     conn.close()
 
-# === ФУНКЦИЯ ДЛЯ ПРЕОБРАЗОВАНИЯ ДАТ ===
+# === ФУНКЦИИ ДЛЯ ДАТ ===
 def format_date_ru(date_str):
     months_gen = {
         '01': 'января', '02': 'февраля', '03': 'марта',
@@ -66,6 +71,12 @@ def format_date_ru(date_str):
         return f"{int(day)} {months_gen.get(month, month)}"
     except:
         return date_str
+
+def format_datetime_ru(dt_str):
+    try:
+        return format_date_ru(dt_str.split(' ')[0])
+    except:
+        return dt_str
 
 def get_month_days(year, month):
     first_day = date(year, month, 1)
@@ -98,49 +109,25 @@ HTML = '''
         }
         :root {
             --bg-body: #0b0b1a;
-            --bg-container: rgba(255, 255, 255, 0.07);
-            --border-color: rgba(255, 255, 255, 0.06);
+            --bg-container: rgba(255,255,255,0.07);
+            --border-color: rgba(255,255,255,0.06);
             --text-primary: #fff;
             --text-secondary: rgba(255,255,255,0.6);
-            --card-bg: rgba(255, 255, 255, 0.04);
-            --input-bg: rgba(255, 255, 255, 0.05);
+            --card-bg: rgba(255,255,255,0.04);
+            --input-bg: rgba(255,255,255,0.05);
             --shadow-color: rgba(0,0,0,0.6);
             --glass-border: rgba(255,255,255,0.08);
         }
         [data-theme="light"] {
             --bg-body: #f0f2f5;
-            --bg-container: rgba(255, 255, 255, 0.7);
-            --border-color: rgba(0, 0, 0, 0.06);
+            --bg-container: rgba(255,255,255,0.7);
+            --border-color: rgba(0,0,0,0.06);
             --text-primary: #1a1a2e;
             --text-secondary: rgba(0,0,0,0.5);
-            --card-bg: rgba(255, 255, 255, 0.6);
-            --input-bg: rgba(255, 255, 255, 0.8);
+            --card-bg: rgba(255,255,255,0.6);
+            --input-bg: rgba(255,255,255,0.8);
             --shadow-color: rgba(0,0,0,0.1);
             --glass-border: rgba(0,0,0,0.05);
-        }
-        #particles-js {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-            pointer-events: none;
-        }
-        .star {
-            position: fixed;
-            width: 3px;
-            height: 3px;
-            background: white;
-            border-radius: 50%;
-            opacity: 0.5;
-            animation: twinkle var(--duration) ease-in-out infinite alternate;
-            z-index: 0;
-            pointer-events: none;
-        }
-        @keyframes twinkle {
-            0% { opacity: 0.1; transform: scale(0.8); }
-            100% { opacity: 0.8; transform: scale(1.2); }
         }
         .container {
             max-width: 1300px;
@@ -190,6 +177,7 @@ HTML = '''
             transition: color 0.3s ease;
         }
         .subtitle span { color: #c084fc; font-weight: 600; }
+        
         .theme-toggle {
             position: absolute;
             top: 0;
@@ -236,16 +224,18 @@ HTML = '''
             border-color: rgba(255,107,107,0.3);
             transform: rotate(90deg);
         }
+        
+        /* ===== МЕНЮ ===== */
         .main-menu {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
             gap: 18px;
             margin: 35px 0;
         }
         .menu-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            padding: 28px 16px;
+            padding: 24px 12px;
             border-radius: 24px;
             text-align: center;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -253,20 +243,19 @@ HTML = '''
             text-decoration: none;
             color: var(--text-primary);
             display: block;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
         }
         .menu-card:hover {
             transform: translateY(-8px) scale(1.02);
             box-shadow: 0 20px 40px rgba(157, 78, 221, 0.15);
             border-color: rgba(157, 78, 221, 0.2);
-            background: var(--card-bg);
         }
-        .menu-card .icon { font-size: 38px; display: block; margin-bottom: 12px; color: #c084fc; }
-        .menu-card .title { font-size: 16px; font-weight: 700; }
-        .menu-card .desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+        .menu-card .icon { font-size: 34px; display: block; margin-bottom: 10px; color: #c084fc; }
+        .menu-card .title { font-size: 14px; font-weight: 700; }
+        .menu-card .desc { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+        .menu-card.chat .icon { color: #60a5fa; }
+        .menu-card.employees .icon { color: #6bcb77; }
         .menu-card.events .icon { color: #fcd34d; }
-        .menu-card.add .icon { color: #6bcb77; }
-        .menu-card.audit .icon { color: #60a5fa; }
+        .menu-card.audit .icon { color: #f472b6; }
         
         .card {
             background: var(--card-bg);
@@ -294,24 +283,21 @@ HTML = '''
         
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             gap: 12px;
             margin-bottom: 25px;
         }
         .stat-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            padding: 16px 10px;
+            padding: 14px 8px;
             border-radius: 20px;
             text-align: center;
             transition: 0.3s;
         }
-        .stat-card:hover {
-            transform: translateY(-3px);
-            border-color: rgba(157, 78, 221, 0.15);
-        }
+        .stat-card:hover { transform: translateY(-3px); border-color: rgba(157,78,221,0.15); }
         .stat-card .number {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 800;
             background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
             -webkit-background-clip: text;
@@ -319,13 +305,13 @@ HTML = '''
         }
         .stat-card .label {
             color: var(--text-secondary);
-            font-size: 11px;
+            font-size: 10px;
             font-weight: 600;
-            margin-top: 4px;
+            margin-top: 3px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
-        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: var(--text-secondary); }
+        .stat-card .icon { font-size: 18px; display: block; margin-bottom: 3px; color: var(--text-secondary); }
         
         .form-group {
             display: flex;
@@ -349,8 +335,7 @@ HTML = '''
         input::placeholder, select { color: var(--text-secondary); }
         input:focus, select:focus {
             border-color: #c084fc;
-            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.1);
-            background: var(--input-bg);
+            box-shadow: 0 0 0 4px rgba(192,132,252,0.1);
         }
         input[type="date"] { min-width: 160px; cursor: pointer; color: var(--text-primary); }
         input[type="file"] { padding: 10px; color: var(--text-secondary); }
@@ -361,6 +346,15 @@ HTML = '''
             min-width: unset;
             accent-color: #c084fc;
             cursor: pointer;
+        }
+        /* ИСПРАВЛЕНИЕ: нормальный вид select */
+        select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+        [data-theme="light"] select option {
+            background: #fff;
+            color: #1a1a2e;
         }
         label { color: var(--text-secondary); font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
         
@@ -377,7 +371,7 @@ HTML = '''
         }
         .search-box:focus-within {
             border-color: #c084fc;
-            box-shadow: 0 0 0 4px rgba(192, 132, 252, 0.05);
+            box-shadow: 0 0 0 4px rgba(192,132,252,0.05);
         }
         .search-box input {
             border: none;
@@ -413,6 +407,7 @@ HTML = '''
         .btn-green { background: linear-gradient(135deg, #6bcb77 0%, #2d8f47 100%); }
         .btn-gold { background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 100%); color: #1a1a2e; }
         .btn-red { background: linear-gradient(135deg, #ff6b6b 0%, #dc2626 100%); }
+        .btn-blue { background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); }
         .btn-sm { padding: 8px 16px; font-size: 12px; border-radius: 10px; }
         .btn-avatar { background: rgba(192,132,252,0.15); color: #c084fc; border: 1px solid rgba(192,132,252,0.2); padding: 6px 12px; font-size: 12px; border-radius: 10px; cursor: pointer; transition: 0.3s; }
         .btn-avatar:hover { background: rgba(192,132,252,0.25); }
@@ -447,14 +442,15 @@ HTML = '''
             border-radius: 20px;
             font-size: 12px;
             font-weight: 700;
-            background: rgba(192, 132, 252, 0.15);
+            background: rgba(192,132,252,0.15);
             color: #c084fc;
         }
-        .badge-gold { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
-        .badge-blue { background: rgba(96, 165, 250, 0.15); color: #60a5fa; }
+        .badge-gold { background: rgba(252,211,77,0.15); color: #fcd34d; }
+        .badge-blue { background: rgba(96,165,250,0.15); color: #60a5fa; }
+        .badge-green { background: rgba(107,203,119,0.15); color: #6bcb77; }
         .rate-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .rate-badge.r400 { background: rgba(107, 203, 119, 0.15); color: #6bcb77; }
-        .rate-badge.r350 { background: rgba(252, 211, 77, 0.15); color: #fcd34d; }
+        .rate-badge.r400 { background: rgba(107,203,119,0.15); color: #6bcb77; }
+        .rate-badge.r350 { background: rgba(252,211,77,0.15); color: #fcd34d; }
         
         .alert {
             padding: 14px 20px;
@@ -478,11 +474,12 @@ HTML = '''
         }
         .back-link:hover { color: #c084fc; transform: translateX(-4px); }
         
+        /* ===== АВАТАРКИ ===== */
         .employee-card {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 14px 18px;
+            padding: 12px 16px;
             background: var(--card-bg);
             border-radius: 16px;
             margin-bottom: 8px;
@@ -491,7 +488,7 @@ HTML = '''
             color: var(--text-primary);
         }
         .employee-card:hover {
-            border-color: rgba(157, 78, 221, 0.2);
+            border-color: rgba(157,78,221,0.2);
             background: var(--card-bg);
         }
         .employee-avatar {
@@ -514,7 +511,10 @@ HTML = '''
             color: var(--text-secondary);
             font-size: 16px;
         }
-        .employee-info { display: flex; align-items: center; flex: 1; }
+        .employee-info { display: flex; align-items: center; flex: 1; cursor: pointer; }
+        .employee-name { font-weight: 600; }
+        .employee-stats { color: var(--text-secondary); font-size: 13px; margin-left: 12px; }
+        
         .delete-btn {
             background: none;
             border: none;
@@ -526,6 +526,49 @@ HTML = '''
         }
         .delete-btn:hover { color: #ff6b6b; transform: scale(1.2); }
         
+        /* ===== ЧАТ ===== */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-messages {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            background: var(--card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+        .chat-message {
+            padding: 10px 14px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .chat-message.outgoing {
+            background: rgba(192,132,252,0.15);
+            border: 1px solid rgba(192,132,252,0.2);
+            margin-left: auto;
+            color: #c084fc;
+        }
+        .chat-message.incoming {
+            background: var(--input-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        .chat-message .msg-sender { font-weight: 700; font-size: 13px; }
+        .chat-message .msg-text { margin: 4px 0; }
+        .chat-message .msg-date { font-size: 10px; color: var(--text-secondary); }
+        .chat-select { min-width: 150px; }
+        .chat-input {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .chat-input input { flex: 1; }
+        
         .month-nav {
             display: flex;
             justify-content: space-between;
@@ -533,6 +576,7 @@ HTML = '''
             margin-bottom: 18px;
         }
         .month-nav .month-title { font-size: 22px; font-weight: 700; color: var(--text-primary); }
+        
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
@@ -548,11 +592,11 @@ HTML = '''
             border: 1px solid var(--border-color);
             transition: 0.3s;
         }
-        .calendar-day:hover { border-color: rgba(192, 132, 252, 0.2); }
+        .calendar-day:hover { border-color: rgba(192,132,252,0.2); }
         .calendar-day .day-num { font-weight: 700; font-size: 16px; color: var(--text-primary); }
         .calendar-day .day-event {
             font-size: 10px;
-            background: rgba(252, 211, 77, 0.15);
+            background: rgba(252,211,77,0.15);
             color: #fcd34d;
             border-radius: 8px;
             padding: 2px 8px;
@@ -562,7 +606,7 @@ HTML = '''
             cursor: pointer;
         }
         .calendar-day.weekend .day-num { color: rgba(255,107,107,0.5); }
-        .calendar-day.today { border-color: #c084fc; background: rgba(192, 132, 252, 0.05); }
+        .calendar-day.today { border-color: #c084fc; background: rgba(192,132,252,0.05); }
         .calendar-day .add-event-btn {
             font-size: 12px;
             color: var(--text-secondary);
@@ -622,7 +666,6 @@ HTML = '''
         }
         .period-group h4.first { border-left: 3px solid #6bcb77; }
         .period-group h4.second { border-left: 3px solid #fcd34d; }
-        
         .total-row td { 
             border-top: 1px solid var(--border-color);
             color: var(--text-primary) !important;
@@ -634,7 +677,7 @@ HTML = '''
             background: var(--card-bg);
             border-radius: 12px;
             margin-bottom: 6px;
-            border-left: 3px solid #60a5fa;
+            border-left: 3px solid #f472b6;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -648,8 +691,8 @@ HTML = '''
             .container { padding: 16px; border-radius: 24px; }
             h1 { font-size: 2em; }
             .main-menu { grid-template-columns: 1fr 1fr; gap: 12px; }
-            .menu-card { padding: 20px 12px; }
-            .menu-card .icon { font-size: 28px; }
+            .menu-card { padding: 16px 10px; }
+            .menu-card .icon { font-size: 26px; }
             .form-group { flex-direction: column; }
             .btn { width: 100%; justify-content: center; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -660,12 +703,12 @@ HTML = '''
             .theme-toggle { left: 4px; }
             .logout-icon { right: 4px; }
             .header .logo { font-size: 40px; }
+            .chat-message { max-width: 95%; }
+            .chat-input { flex-direction: column; }
         }
     </style>
 </head>
 <body>
-<div id="particles-js"></div>
-
 <div class="container">
     <div class="header">
         <span class="logo">🏢</span>
@@ -706,14 +749,23 @@ HTML = '''
             </span>
             {% endif %}
         </div>
+        <!-- УДОБНАЯ КНОПКА НА ГЛАВНУЮ -->
+        <a href="/" class="btn btn-sm" style="background:var(--card-bg);border:1px solid var(--border-color);color:var(--text-secondary);">
+            <i class="fas fa-home"></i> Главная
+        </a>
     </div>
 
     {% if not current_section or current_section == 'main' %}
     <div class="main-menu">
-        <a href="/section/employees" class="menu-card">
+        <a href="/section/chat" class="menu-card chat">
+            <span class="icon"><i class="fas fa-comments"></i></span>
+            <div class="title">Чат</div>
+            <div class="desc">Общение с коллегами</div>
+        </a>
+        <a href="/section/employees" class="menu-card employees">
             <span class="icon"><i class="fas fa-users"></i></span>
             <div class="title">Сотрудники</div>
-            <div class="desc">Управление персоналом</div>
+            <div class="desc">Список коллег</div>
         </a>
         <a href="/section/events" class="menu-card events">
             <span class="icon"><i class="fas fa-calendar-alt"></i></span>
@@ -736,7 +788,7 @@ HTML = '''
             <div class="desc">Управление премиями</div>
         </a>
         {% if session.is_admin %}
-        <a href="/section/add" class="menu-card add">
+        <a href="/section/add" class="menu-card">
             <span class="icon"><i class="fas fa-plus-circle"></i></span>
             <div class="title">Добавить</div>
             <div class="desc">Новый сотрудник / часы</div>
@@ -749,6 +801,7 @@ HTML = '''
         {% endif %}
     </div>
 
+    <!-- Статистика -->
     <div class="card">
         <h3><span class="icon"><i class="fas fa-chart-bar"></i></span> Статистика месяца</h3>
         <div class="stats-grid">
@@ -758,7 +811,6 @@ HTML = '''
             <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ stats.total_konserzhka }}</div><div class="label">Консержек</div></div>
             <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ stats.grand_total|round(0) }}</div><div class="label">ИТОГО</div></div>
         </div>
-        
         {% if chart_data %}
         <div class="chart-container">
             <h4 style="margin-bottom:12px;color:var(--text-secondary);font-size:13px;text-transform:uppercase;letter-spacing:0.5px;">
@@ -779,10 +831,59 @@ HTML = '''
     </div>
     {% endif %}
 
+    <!-- ===== ЧАТ ===== -->
+    {% if current_section == 'chat' %}
+    <div class="card blue">
+        <h3><span class="icon"><i class="fas fa-comments"></i></span> Чат с сотрудниками</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
+        
+        <div class="chat-container">
+            <!-- Выбор получателя -->
+            <form method="GET" action="/section/chat" class="form-group">
+                <select name="to_id" class="chat-select" onchange="this.form.submit()">
+                    <option value="">Выберите сотрудника...</option>
+                    {% for emp in chat_employees %}
+                    <option value="{{ emp.id }}" {% if chat_to_id == emp.id %}selected{% endif %}>{{ emp.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+            
+            <!-- Сообщения -->
+            <div class="chat-messages" id="chatMessages">
+                {% if chat_messages %}
+                {% for msg in chat_messages %}
+                <div class="chat-message {% if msg.from_id == session.user_id %}outgoing{% else %}incoming{% endif %}">
+                    <div class="msg-sender">{{ msg.from_name }}</div>
+                    <div class="msg-text">{{ msg.message }}</div>
+                    <div class="msg-date">{{ msg.date_ru }}</div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p style="color:var(--text-secondary);text-align:center;padding:20px;">Нет сообщений. Напишите что-нибудь!</p>
+                {% endif %}
+            </div>
+            
+            <!-- Отправка -->
+            {% if chat_to_id %}
+            <form method="POST" action="/send_message" class="chat-input">
+                <input type="hidden" name="to_id" value="{{ chat_to_id }}">
+                <input type="text" name="message" placeholder="Введите сообщение..." required>
+                <button type="submit" class="btn btn-blue btn-sm"><i class="fas fa-paper-plane"></i> Отправить</button>
+            </form>
+            {% else %}
+            <p style="color:var(--text-secondary);font-size:14px;text-align:center;padding:10px;">
+                👆 Выберите сотрудника, чтобы начать чат
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ===== СОТРУДНИКИ (все видят всех, но без ЗП) ===== -->
     {% if current_section == 'employees' %}
-    <div class="card">
-        <h3><span class="icon"><i class="fas fa-users"></i></span> Все сотрудники</h3>
-        <p style="color:var(--text-secondary);margin-bottom:14px;font-size:14px;">📌 Нажмите на сотрудника для просмотра деталей</p>
+    <div class="card green">
+        <h3><span class="icon"><i class="fas fa-users"></i></span> Сотрудники</h3>
+        <p style="color:var(--text-secondary);margin-bottom:14px;font-size:14px;">📌 Нажмите на сотрудника для просмотра профиля</p>
         <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
         
         <div class="search-box">
@@ -791,33 +892,27 @@ HTML = '''
         </div>
         
         <div id="employeeList">
-        {% if employees %}
-        {% for emp in employees %}
-        <div class="employee-card" data-name="{{ emp.name|lower }}" onclick="window.location.href='/employee/{{ emp.id }}'" style="cursor:pointer;">
+        {% if all_employees %}
+        {% for emp in all_employees %}
+        <div class="employee-card" data-name="{{ emp.name|lower }}" onclick="window.location.href='/profile/{{ emp.id }}'" style="cursor:pointer;">
             <div class="employee-info">
                 {% if emp.avatar %}
                 <img src="data:image/jpeg;base64,{{ emp.avatar }}" class="employee-avatar" alt="{{ emp.name }}">
                 {% else %}
                 <div class="employee-avatar-placeholder"><i class="fas fa-user"></i></div>
                 {% endif %}
-                <div class="name">{{ emp.name }}</div>
-            </div>
-            <div class="stats" style="color:var(--text-secondary);font-size:14px;">
-                <i class="fas fa-clock" style="color:#c084fc;"></i> <strong style="color:var(--text-primary);">{{ emp.month_hours|round(1) }}</strong> ч · 
-                <i class="fas fa-utensils" style="color:#fcd34d;"></i> <strong style="color:var(--text-primary);">{{ emp.month_konserzhka }}</strong> · 
-                <i class="fas fa-ruble-sign" style="color:#6bcb77;"></i> <strong style="color:var(--text-primary);">{{ emp.month_total|round(0) }}</strong> ₽
+                <div>
+                    <div class="employee-name">{{ emp.name }}</div>
+                    {% if session.is_admin %}
+                    <div class="employee-stats">⭐ {{ emp.month_hours|round(1) }}ч · {{ emp.month_total|round(0) }}₽</div>
+                    {% else %}
+                    <div class="employee-stats">👤 Сотрудник</div>
+                    {% endif %}
+                </div>
             </div>
             <div class="actions">
-                {% if session.is_admin %}
-                <form method="POST" action="/upload_avatar" enctype="multipart/form-data" style="display:inline;" onclick="event.stopPropagation();">
-                    <input type="hidden" name="emp_id" value="{{ emp.id }}">
-                    <input type="file" name="avatar" accept="image/*" style="display:none;" id="avatar-{{ emp.id }}" onchange="this.form.submit()">
-                    <label for="avatar-{{ emp.id }}" class="btn-avatar" style="cursor:pointer;"><i class="fas fa-camera"></i></label>
-                </form>
-                <form method="POST" action="/delete_employee" onsubmit="return confirm('Удалить {{ emp.name }}? Все данные будут потеряны!')" onclick="event.stopPropagation();">
-                    <input type="hidden" name="emp_id" value="{{ emp.id }}">
-                    <button type="submit" class="delete-btn" title="Удалить сотрудника"><i class="fas fa-trash"></i></button>
-                </form>
+                {% if session.user_id == emp.id %}
+                <span class="badge badge-green" style="font-size:11px;">Это я</span>
                 {% endif %}
             </div>
         </div>
@@ -829,28 +924,54 @@ HTML = '''
     </div>
     {% endif %}
 
-    {% if current_section == 'audit' and session.is_admin %}
-    <div class="card blue">
-        <h3><span class="icon"><i class="fas fa-history"></i></span> История изменений (Аудит)</h3>
-        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
-        {% if audit_logs %}
-        <div style="max-height:500px;overflow-y:auto;">
-            {% for log in audit_logs %}
-            <div class="audit-item">
-                <span>
-                    <span class="admin">👤 {{ log.admin_name }}</span>
-                    <span class="action">{{ log.action_type }}: {{ log.action_details }}</span>
-                </span>
-                <span class="date"><i class="far fa-calendar-alt"></i> {{ log.date_ru }}</span>
+    <!-- ===== ПРОФИЛЬ СОТРУДНИКА (для всех) ===== -->
+    {% if current_section == 'profile' and profile_user %}
+    <div class="card" style="border-left: 3px solid #c084fc;">
+        <h3><span class="icon"><i class="fas fa-user"></i></span> Профиль: {{ profile_user.name }}</h3>
+        <a href="/section/employees" class="back-link"><i class="fas fa-arrow-left"></i> Назад к списку</a>
+        
+        <div style="text-align:center;margin:20px 0;">
+            {% if profile_user.avatar %}
+            <img src="data:image/jpeg;base64,{{ profile_user.avatar }}" style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:3px solid rgba(192,132,252,0.2);">
+            {% else %}
+            <div style="width:120px;height:120px;border-radius:50%;background:var(--border-color);display:flex;align-items:center;justify-content:center;margin:0 auto;font-size:50px;color:var(--text-secondary);">
+                <i class="fas fa-user"></i>
             </div>
-            {% endfor %}
+            {% endif %}
+            
+            <!-- Загрузка аватарки (для самого сотрудника) -->
+            {% if session.user_id == profile_user.id or session.is_admin %}
+            <div style="margin-top:12px;">
+                <form method="POST" action="/upload_avatar_self" enctype="multipart/form-data" style="display:inline;">
+                    <input type="file" name="avatar" accept="image/*" id="self-avatar-upload" style="display:none;" onchange="this.form.submit()">
+                    <label for="self-avatar-upload" class="btn btn-avatar"><i class="fas fa-camera"></i> Сменить аватар</label>
+                </form>
+            </div>
+            {% endif %}
+            
+            <h2 style="color:var(--text-primary);margin-top:15px;">{{ profile_user.name }}</h2>
+            <p style="color:var(--text-secondary);">
+                {% if profile_user.id == 0 %}👑 Администратор
+                {% elif session.is_admin %}⭐ Сотрудник
+                {% else %}👤 Сотрудник
+                {% endif %}
+            </p>
         </div>
-        {% else %}
-        <p style="color:var(--text-secondary);"><i class="fas fa-inbox"></i> История пока пуста</p>
+        
+        <!-- Статистика (только для админа или для самого себя) -->
+        {% if session.is_admin or session.user_id == profile_user.id %}
+        <div class="stats-grid" style="max-width:600px;margin:0 auto;">
+            <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ profile_stats.total_hours|round(1) }}</div><div class="label">Часов</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ profile_stats.total_salary|round(0) }}</div><div class="label">Зарплата</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ profile_stats.total_konserzhka }}</div><div class="label">Консержек</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-gift"></i></span><div class="number">{{ profile_stats.total_bonus|round(0) }}</div><div class="label">Премии</div></div>
+            <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ profile_stats.grand_total|round(0) }}</div><div class="label">ИТОГО</div></div>
+        </div>
         {% endif %}
     </div>
     {% endif %}
 
+    <!-- ===== ОСТАЛЬНЫЕ РАЗДЕЛЫ (без изменений) ===== -->
     {% if current_section == 'events' %}
     <div class="card gold">
         <h3><span class="icon"><i class="fas fa-calendar-alt"></i></span> Календарь мероприятий</h3>
@@ -906,7 +1027,7 @@ HTML = '''
                 {% if session.is_admin %}
                 <form method="POST" action="/delete_event" style="display:inline;" onsubmit="return confirm('Удалить мероприятие?')">
                     <input type="hidden" name="event_id" value="{{ event.id }}">
-                    <button type="submit" class="delete-btn" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;transition:0.3s;padding:0 5px;" onmouseover="this.style.color='#ff6b6b'" onmouseout="this.style.color='var(--text-secondary)'"><i class="fas fa-trash"></i></button>
+                    <button type="submit" class="delete-btn" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;transition:0.3s;padding:0 5px;"><i class="fas fa-trash"></i></button>
                 </form>
                 {% endif %}
             </div>
@@ -1034,7 +1155,7 @@ HTML = '''
         <form method="POST" action="/add_bonus" class="form-group" style="margin-bottom:18px;">
             <select name="emp_id" required>
                 <option value="">Выберите сотрудника</option>
-                {% for emp in employees %}
+                {% for emp in all_employees %}
                 <option value="{{ emp.id }}">{{ emp.name }}</option>
                 {% endfor %}
             </select>
@@ -1079,7 +1200,7 @@ HTML = '''
         <form method="POST" action="/add_hours" class="form-group">
             <select name="emp_id" required style="flex:1;">
                 <option value="">Выберите сотрудника</option>
-                {% for emp in employees %}
+                {% for emp in all_employees %}
                 <option value="{{ emp.id }}">{{ emp.name }}</option>
                 {% endfor %}
             </select>
@@ -1098,6 +1219,28 @@ HTML = '''
     </div>
     {% endif %}
 
+    {% if current_section == 'audit' and session.is_admin %}
+    <div class="card" style="border-left: 3px solid #f472b6;">
+        <h3><span class="icon"><i class="fas fa-history"></i></span> История изменений (Аудит)</h3>
+        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> На главную</a>
+        {% if audit_logs %}
+        <div style="max-height:500px;overflow-y:auto;">
+            {% for log in audit_logs %}
+            <div class="audit-item">
+                <span>
+                    <span class="admin">👤 {{ log.admin_name }}</span>
+                    <span class="action">{{ log.action_type }}: {{ log.action_details }}</span>
+                </span>
+                <span class="date"><i class="far fa-calendar-alt"></i> {{ log.date_ru }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p style="color:var(--text-secondary);"><i class="fas fa-inbox"></i> История пока пуста</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if msg and session.get('user_id') is not none %}
     <div class="alert alert-success">{{ msg }}</div>
     {% endif %}
@@ -1112,20 +1255,33 @@ function toggleTheme() {
     html.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
     const btn = document.querySelector('.theme-toggle i');
-    if (newTheme === 'dark') {
-        btn.className = 'fas fa-moon';
-    } else {
-        btn.className = 'fas fa-sun';
-    }
+    btn.className = newTheme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
 }
 document.addEventListener('DOMContentLoaded', function() {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme) {
         document.documentElement.setAttribute('data-theme', savedTheme);
         const btn = document.querySelector('.theme-toggle i');
-        if (savedTheme === 'light') {
-            btn.className = 'fas fa-sun';
-        }
+        if (savedTheme === 'light') btn.className = 'fas fa-sun';
+    }
+    // Автообновление чата каждые 10 секунд
+    if (window.location.pathname.includes('/section/chat')) {
+        setInterval(function() {
+            var select = document.querySelector('.chat-select');
+            if (select) {
+                var toId = select.value;
+                if (toId) {
+                    fetch('/get_messages?to_id=' + toId)
+                        .then(r => r.json())
+                        .then(data => {
+                            var container = document.getElementById('chatMessages');
+                            if (container) {
+                                container.innerHTML = data.html;
+                            }
+                        });
+                }
+            }
+        }, 10000);
     }
 });
 function filterEmployees() {
@@ -1134,11 +1290,7 @@ function filterEmployees() {
     const cards = document.querySelectorAll('#employeeList .employee-card');
     cards.forEach(card => {
         const name = card.getAttribute('data-name');
-        if (name && name.includes(filter)) {
-            card.style.display = 'flex';
-        } else {
-            card.style.display = 'none';
-        }
+        card.style.display = name && name.includes(filter) ? 'flex' : 'none';
     });
 }
 function filterHours() {
@@ -1148,11 +1300,7 @@ function filterHours() {
     rows.forEach(row => {
         const employee = row.getAttribute('data-employee');
         const date = row.getAttribute('data-date');
-        if ((employee && employee.includes(filter)) || (date && date.includes(filter))) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        row.style.display = (employee && employee.includes(filter)) || (date && date.includes(filter)) ? '' : 'none';
     });
 }
 function addEvent(date) {
@@ -1162,21 +1310,11 @@ function addEvent(date) {
         var form = document.createElement('form');
         form.method = 'POST';
         form.action = '/add_event';
-        var input1 = document.createElement('input');
-        input1.type = 'hidden';
-        input1.name = 'event_date';
-        input1.value = date;
-        var input2 = document.createElement('input');
-        input2.type = 'hidden';
-        input2.name = 'title';
-        input2.value = title;
-        var input3 = document.createElement('input');
-        input3.type = 'hidden';
-        input3.name = 'description';
-        input3.value = desc || '';
-        form.appendChild(input1);
-        form.appendChild(input2);
-        form.appendChild(input3);
+        form.innerHTML = `
+            <input type="hidden" name="event_date" value="${date}">
+            <input type="hidden" name="title" value="${title}">
+            <input type="hidden" name="description" value="${desc || ''}">
+        `;
         document.body.appendChild(form);
         form.submit();
     }
@@ -1186,13 +1324,14 @@ function addEvent(date) {
 </html>
 '''
 
-EMPLOYEE_HTML = '''
+# === СТРАНИЦА ПРОФИЛЯ ===
+PROFILE_HTML = '''
 <!DOCTYPE html>
 <html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ employee.name }} — Зарплата Клуб</title>
+    <title>{{ user.name }} — Зарплата Клуб</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -1225,7 +1364,7 @@ EMPLOYEE_HTML = '''
             --shadow: rgba(0,0,0,0.1);
         }
         .container {
-            max-width: 1000px;
+            max-width: 900px;
             margin: 0 auto;
             background: var(--bg-container);
             backdrop-filter: blur(20px);
@@ -1254,143 +1393,44 @@ EMPLOYEE_HTML = '''
         }
         .back-link { color: var(--text-secondary); font-weight: 600; text-decoration: none; transition: 0.3s; }
         .back-link:hover { color: #c084fc; transform: translateX(-4px); }
-        
-        .profile-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid rgba(192,132,252,0.2);
-            margin-bottom: 10px;
-        }
+        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(192,132,252,0.2); }
         .profile-avatar-placeholder {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: var(--card-bg);
-            border: 3px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            color: var(--text-secondary);
-            margin-bottom: 10px;
+            width: 120px; height: 120px; border-radius: 50%;
+            background: var(--card-bg); border: 3px solid var(--border-color);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 50px; color: var(--text-secondary);
         }
-        .avatar-upload {
-            margin: 10px 0 20px 0;
-        }
-        .avatar-upload input[type="file"] { display: none; }
-        .avatar-upload label {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            padding: 8px 16px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 13px;
-            color: var(--text-secondary);
-            transition: 0.3s;
-        }
-        .avatar-upload label:hover { border-color: #c084fc; color: #c084fc; }
-        
+        .btn-avatar { background: rgba(192,132,252,0.15); color: #c084fc; border: 1px solid rgba(192,132,252,0.2); padding: 8px 16px; border-radius: 12px; cursor: pointer; transition: 0.3s; font-size: 13px; }
+        .btn-avatar:hover { background: rgba(192,132,252,0.25); }
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
             gap: 12px;
-            margin-bottom: 25px;
+            margin: 20px 0;
         }
         .stat-card {
             background: var(--card-bg);
             border: 1px solid var(--border-color);
-            padding: 16px;
-            border-radius: 20px;
-            text-align: center;
-            transition: 0.3s;
-        }
-        .stat-card:hover { transform: translateY(-3px); }
-        .stat-card .number {
-            font-size: 24px;
-            font-weight: 800;
-            background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-        .stat-card .label { color: var(--text-secondary); font-size: 11px; font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .stat-card .icon { font-size: 20px; display: block; margin-bottom: 4px; color: var(--text-secondary); }
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 24px;
-            padding: 24px;
-            margin-bottom: 24px;
-            transition: 0.3s;
-        }
-        .card h3 { color: var(--text-primary); margin-bottom: 14px; font-weight: 700; font-size: 1.1em; }
-        .card h3 i { color: #c084fc; margin-right: 10px; }
-        .month-selector {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
-        .month-selector input[type="month"] {
-            padding: 10px 16px;
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 14px;
-            font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            color: var(--text-primary);
-            min-width: 180px;
-            outline: none;
-        }
-        .month-selector input[type="month"]:focus { border-color: #c084fc; box-shadow: 0 0 0 4px rgba(192,132,252,0.1); }
-        .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 14px;
-            font-size: 14px;
-            font-weight: 700;
-            font-family: 'Inter', sans-serif;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            color: #fff;
-        }
-        .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.3); }
-        .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%); }
-        .table-wrapper { overflow-x: auto; border-radius: 16px; border: 1px solid var(--border-color); }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; color: var(--text-primary); }
-        table th {
-            background: var(--card-bg);
-            color: var(--text-secondary);
-            padding: 12px 14px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        table td {
-            padding: 11px 14px;
-            border-bottom: 1px solid var(--border-color);
-        }
-        table tr:hover td { background: var(--card-bg); }
-        .badge-purple { background: rgba(192,132,252,0.15); color: #c084fc; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
-        .rate-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; }
-        .rate-badge.r400 { background: rgba(107,203,119,0.15); color: #6bcb77; }
-        .rate-badge.r350 { background: rgba(252,211,77,0.15); color: #fcd34d; }
-        .total-row td { border-top: 1px solid var(--border-color); color: var(--text-primary) !important; font-weight: 700; }
-        .alert {
-            padding: 14px 20px;
+            padding: 14px;
             border-radius: 16px;
-            margin: 12px 0;
-            font-weight: 600;
-            border-left: 3px solid;
-            background: var(--card-bg);
+            text-align: center;
         }
-        .alert-success { color: #6bcb77; border-color: #6bcb77; }
+        .stat-card .number {
+            font-size: 22px; font-weight: 800;
+            background: linear-gradient(135deg, #c084fc 0%, #f472b6 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .stat-card .label { color: var(--text-secondary); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+        .stat-card .icon { font-size: 18px; display: block; margin-bottom: 3px; color: var(--text-secondary); }
+        .btn {
+            padding: 10px 20px; border: none; border-radius: 12px; font-size: 14px;
+            font-weight: 700; cursor: pointer; transition: all 0.3s ease;
+            color: #fff; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 12px 30px rgba(0,0,0,0.2); }
+        .btn-purple { background: linear-gradient(135deg, #9d4edd 0%, #6d28d9 100%); }
         @media (max-width: 700px) {
-            .container { padding: 16px; border-radius: 24px; }
+            .container { padding: 16px; }
             .header h1 { font-size: 1.6em; }
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -1399,92 +1439,45 @@ EMPLOYEE_HTML = '''
 <body>
 <div class="container">
     <div class="header">
-        <h1><i class="fas fa-user" style="color:#c084fc;"></i> {{ employee.name }}</h1>
-        <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Назад</a>
+        <h1><i class="fas fa-user" style="color:#c084fc;"></i> Профиль</h1>
+        <a href="/section/employees" class="back-link"><i class="fas fa-arrow-left"></i> Назад</a>
     </div>
 
     <div style="text-align:center;">
-        {% if employee.avatar %}
-        <img src="data:image/jpeg;base64,{{ employee.avatar }}" class="profile-avatar" alt="{{ employee.name }}">
+        {% if user.avatar %}
+        <img src="data:image/jpeg;base64,{{ user.avatar }}" class="profile-avatar" alt="{{ user.name }}">
         {% else %}
         <div class="profile-avatar-placeholder"><i class="fas fa-user"></i></div>
         {% endif %}
-        {% if session.is_admin %}
-        <div class="avatar-upload">
-            <form method="POST" action="/upload_avatar" enctype="multipart/form-data" style="display:inline;">
-                <input type="hidden" name="emp_id" value="{{ employee.id }}">
-                <input type="file" name="avatar" accept="image/*" id="avatar-upload" onchange="this.form.submit()">
-                <label for="avatar-upload"><i class="fas fa-camera"></i> Сменить аватар</label>
+        <h2 style="color:var(--text-primary);margin-top:15px;">{{ user.name }}</h2>
+        <p style="color:var(--text-secondary);">
+            {% if user.id == 0 %}👑 Администратор
+            {% elif session.is_admin %}⭐ Сотрудник
+            {% else %}👤 Сотрудник
+            {% endif %}
+        </p>
+        {% if session.user_id == user.id or session.is_admin %}
+        <div style="margin-top:12px;">
+            <form method="POST" action="/upload_avatar_self" enctype="multipart/form-data" style="display:inline;">
+                <input type="file" name="avatar" accept="image/*" id="self-avatar-upload" style="display:none;" onchange="this.form.submit()">
+                <label for="self-avatar-upload" class="btn-avatar"><i class="fas fa-camera"></i> Сменить аватар</label>
             </form>
         </div>
         {% endif %}
     </div>
 
+    {% if can_view_stats %}
     <div class="stats-grid">
-        <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ total_hours|round(1) }}</div><div class="label">Часов</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ total_salary|round(0) }}</div><div class="label">Зарплата</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ total_konserzhka }}</div><div class="label">Консержек</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-gift"></i></span><div class="number">{{ total_bonus|round(0) }}</div><div class="label">Премии</div></div>
-        <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ grand_total|round(0) }}</div><div class="label">ИТОГО</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-clock"></i></span><div class="number">{{ stats.total_hours|round(1) }}</div><div class="label">Часов</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-ruble-sign"></i></span><div class="number">{{ stats.total_salary|round(0) }}</div><div class="label">Зарплата</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-utensils"></i></span><div class="number">{{ stats.total_konserzhka }}</div><div class="label">Консержек</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-gift"></i></span><div class="number">{{ stats.total_bonus|round(0) }}</div><div class="label">Премии</div></div>
+        <div class="stat-card"><span class="icon"><i class="fas fa-gem"></i></span><div class="number">{{ stats.grand_total|round(0) }}</div><div class="label">ИТОГО</div></div>
     </div>
-
-    <div class="card">
-        <h3><i class="fas fa-calendar-day"></i> Детали по дням</h3>
-        <div class="month-selector">
-            <form method="GET" action="/employee/{{ employee.id }}" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <input type="month" name="month" value="{{ selected_month }}">
-                <button type="submit" class="btn btn-purple"><i class="fas fa-search"></i> Показать</button>
-            </form>
-        </div>
-        {% if logs %}
-        <div class="table-wrapper">
-            <table>
-                <tr><th>Дата</th><th>Часы</th><th>Ставка</th><th>Консержка</th><th>Итого</th></tr>
-                {% for log in logs %}
-                <tr>
-                    <td>{{ log.date_ru }}</td>
-                    <td>{{ log.hours }}</td>
-                    <td><span class="rate-badge r{{ log.rate|int }}">{{ log.rate }} ₽/ч</span></td>
-                    <td>{% if log.konserzhka %}<i class="fas fa-utensils" style="color:#fcd34d;"></i> +1500 ₽{% else %}—{% endif %}</td>
-                    <td><strong>{{ log.total }} ₽</strong></td>
-                </tr>
-                {% endfor %}
-                <tr class="total-row">
-                    <td><strong>ИТОГО за месяц</strong></td>
-                    <td><strong>{{ month_hours|round(1) }}</strong></td>
-                    <td></td>
-                    <td><strong>{{ month_konserzhka }}</strong></td>
-                    <td><strong>{{ month_total|round(0) }} ₽</strong></td>
-                </tr>
-            </table>
-        </div>
-        {% else %}
-        <p style="color:var(--text-secondary);"><i class="fas fa-inbox"></i> Нет записей за этот месяц</p>
-        {% endif %}
+    {% else %}
+    <div style="text-align:center;padding:20px;color:var(--text-secondary);">
+        <i class="fas fa-lock"></i> Зарплата и часы скрыты
     </div>
-
-    <div class="card" style="border-left: 3px solid #fcd34d;">
-        <h3><i class="fas fa-gift" style="color:#fcd34d;"></i> Премии</h3>
-        {% if bonuses %}
-        <div class="table-wrapper">
-            <table>
-                <tr><th>Дата</th><th>Сумма</th><th>Описание</th></tr>
-                {% for bonus in bonuses %}
-                <tr>
-                    <td>{{ bonus.date_ru }}</td>
-                    <td><strong>{{ bonus.amount }} ₽</strong></td>
-                    <td>{{ bonus.description or '—' }}</td>
-                </tr>
-                {% endfor %}
-            </table>
-        </div>
-        {% else %}
-        <p style="color:var(--text-secondary);"><i class="fas fa-gift"></i> Нет премий</p>
-        {% endif %}
-    </div>
-
-    {% if msg %}
-    <div class="alert alert-success">{{ msg }}</div>
     {% endif %}
 </div>
 </body>
@@ -1495,24 +1488,26 @@ EMPLOYEE_HTML = '''
 @app.route('/')
 def index():
     if session.get('user_id') is None:
-        return render_template_string(HTML, session={}, employees=[], all_logs=[], all_bonuses=[], my_logs=[], stats={}, payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, events=[], calendar_days=[], chart_data=[], audit_logs=[], today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', current_year=0, prev_month='', next_month='', msg=request.args.get('msg'))
+        return render_template_string(HTML, session={}, all_employees=[], all_logs=[], all_bonuses=[], stats={}, payments={'first': [], 'second': [], 'first_total': 0, 'second_total': 0}, events=[], calendar_days=[], chart_data=[], audit_logs=[], chat_employees=[], chat_messages=[], chat_to_id=None, profile_user=None, profile_stats={}, today=date.today().strftime('%Y-%m-%d'), selected_month=date.today().strftime('%Y-%m'), current_section='main', month_name='', current_year=0, prev_month='', next_month='', msg=request.args.get('msg'))
     
     conn = get_db()
     today = date.today()
     month = request.args.get('month', today.strftime('%Y-%m'))
     today_str = today.strftime('%Y-%m-%d')
     
-    employees = []
+    all_employees = []
     all_logs = []
     all_bonuses = []
-    my_logs = []
     stats = {}
     payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
     chart_data = []
     audit_logs = []
+    events = []
+    chat_employees = []
+    chat_messages = []
+    chat_to_id = None
     
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
-    events = []
     for ev in events_raw:
         events.append({
             'id': ev[0],
@@ -1522,8 +1517,22 @@ def index():
             'description': ev[3]
         })
     
+    # Все сотрудники (для списка и чата)
+    employees_raw = conn.execute("SELECT id, name, avatar, is_admin FROM employees").fetchall()
+    for emp in employees_raw:
+        emp_data = {
+            'id': emp[0],
+            'name': emp[1],
+            'avatar': emp[2] or '',
+            'is_admin': emp[3]
+        }
+        all_employees.append(emp_data)
+        # Для чата: все кроме себя
+        if emp[0] != session.get('user_id', -1):
+            chat_employees.append({'id': emp[0], 'name': emp[1]})
+    
     if session.get('is_admin'):
-        employees_raw = conn.execute("SELECT id, name, avatar FROM employees").fetchall()
+        # Для админа: полная статистика по месяцам
         max_hours = 0
         for emp in employees_raw:
             rows_month = conn.execute(
@@ -1546,20 +1555,26 @@ def index():
                 'month_salary': month_salary,
                 'month_konserzhka': month_konserzhka,
                 'month_bonus': month_bonus,
-                'month_total': month_salary + month_konserzhka + month_bonus
+                'month_total': month_salary + month_konserzhka + month_bonus,
+                'is_admin': emp[3]
             }
-            employees.append(emp_data)
+            # Обновляем данные в all_employees
+            for i, e in enumerate(all_employees):
+                if e['id'] == emp[0]:
+                    all_employees[i] = emp_data
+                    break
             if month_hours > max_hours:
                 max_hours = month_hours
         
         if max_hours > 0:
-            for emp in employees:
-                percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
-                chart_data.append({
-                    'name': emp['name'],
-                    'hours': emp['month_hours'],
-                    'percent': min(percent, 100)
-                })
+            for emp in all_employees:
+                if 'month_hours' in emp:
+                    percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
+                    chart_data.append({
+                        'name': emp['name'],
+                        'hours': emp['month_hours'],
+                        'percent': min(percent, 100)
+                    })
             chart_data.sort(key=lambda x: x['hours'], reverse=True)
         
         logs = conn.execute(
@@ -1603,7 +1618,6 @@ def index():
                 'description': bonus[3]
             })
         
-        # === АУДИТ ===
         audit_raw = conn.execute(
             "SELECT admin_name, action_type, action_details, action_date FROM audit_log ORDER BY id DESC LIMIT 100"
         ).fetchall()
@@ -1617,47 +1631,64 @@ def index():
         
         stats = {
             'total_employees': len(employees_raw),
-            'total_hours': sum(e['month_hours'] for e in employees),
-            'total_salary': sum(e['month_salary'] for e in employees),
-            'total_konserzhka': sum(e['month_konserzhka'] for e in employees),
-            'grand_total': sum(e['month_total'] for e in employees)
+            'total_hours': sum(e.get('month_hours', 0) for e in all_employees),
+            'total_salary': sum(e.get('month_salary', 0) for e in all_employees),
+            'total_konserzhka': sum(e.get('month_konserzhka', 0) for e in all_employees),
+            'grand_total': sum(e.get('month_total', 0) for e in all_employees)
         }
-        
     else:
+        # Сотрудник: только общая статистика (без деталей других)
+        stats = {
+            'total_employees': len(employees_raw),
+            'total_hours': 0,
+            'total_salary': 0,
+            'total_konserzhka': 0,
+            'grand_total': 0
+        }
+        # Но сотрудник видит только свои часы в разделе "Часы"
         emp_id = session['user_id']
         logs = conn.execute(
             "SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC",
             (emp_id, month + "%")
         ).fetchall()
-        
-        total_salary = 0
-        total_konserzhka = 0
         for log in logs:
             total = log[1] * log[2] + (1500 if log[3] == 1 else 0)
-            total_salary += log[1] * log[2]
-            total_konserzhka += 1500 if log[3] == 1 else 0
-            my_logs.append({
+            all_logs.append({
                 'date': log[0],
                 'date_ru': format_date_ru(log[0]),
+                'employee': session['user_name'],
                 'hours': log[1],
                 'rate': log[2],
                 'konserzhka': log[3],
                 'total': total
             })
+            
+            day = log[0].split('-')[2]
+            period = 'first' if int(day) <= 15 else 'second'
+            payments[period].append({
+                'date': log[0],
+                'date_ru': format_date_ru(log[0]),
+                'employee': session['user_name'],
+                'hours': log[1],
+                'rate': log[2],
+                'konserzhka': log[3],
+                'total': total
+            })
+            payments[period + '_total'] = payments.get(period + '_total', 0) + total
         
+        # Бонусы для сотрудника
         bonuses = conn.execute(
-            "SELECT amount FROM fixed_payments WHERE employee_id=? AND payment_date LIKE ?",
-            (emp_id, month + "%")
+            "SELECT f.payment_date, e.name, f.amount, f.description FROM fixed_payments f JOIN employees e ON f.employee_id=e.id WHERE e.id=? ORDER BY f.payment_date DESC",
+            (emp_id,)
         ).fetchall()
-        total_bonus = sum(b[0] for b in bonuses)
-        
-        stats = {
-            'total_employees': 1,
-            'total_hours': sum(l['hours'] for l in my_logs),
-            'total_salary': total_salary,
-            'total_konserzhka': total_konserzhka,
-            'grand_total': total_salary + total_konserzhka + total_bonus
-        }
+        for bonus in bonuses:
+            all_bonuses.append({
+                'date': bonus[0],
+                'date_ru': format_date_ru(bonus[0]),
+                'employee': bonus[1],
+                'amount': bonus[2],
+                'description': bonus[3]
+            })
     
     # Календарь
     year, month_num = map(int, month.split('-'))
@@ -1698,16 +1729,20 @@ def index():
     return render_template_string(
         HTML,
         session=session,
-        employees=employees,
+        all_employees=all_employees,
         all_logs=all_logs[:200],
         all_bonuses=all_bonuses[:200],
-        my_logs=my_logs,
         stats=stats,
         payments=payments,
         events=events,
         calendar_days=calendar_days,
         chart_data=chart_data,
         audit_logs=audit_logs,
+        chat_employees=chat_employees,
+        chat_messages=chat_messages,
+        chat_to_id=None,
+        profile_user=None,
+        profile_stats={},
         today=today_str,
         selected_month=month,
         current_section='main',
@@ -1728,14 +1763,31 @@ def section(section):
     month = request.args.get('month', today.strftime('%Y-%m'))
     today_str = today.strftime('%Y-%m-%d')
     
-    employees = []
+    all_employees = []
     all_logs = []
     all_bonuses = []
     stats = {}
     payments = {'first': [], 'second': [], 'first_total': 0, 'second_total': 0}
     chart_data = []
-    events = []
     audit_logs = []
+    events = []
+    chat_employees = []
+    chat_messages = []
+    chat_to_id = None
+    profile_user = None
+    profile_stats = {}
+    
+    employees_raw = conn.execute("SELECT id, name, avatar, is_admin FROM employees").fetchall()
+    for emp in employees_raw:
+        emp_data = {
+            'id': emp[0],
+            'name': emp[1],
+            'avatar': emp[2] or '',
+            'is_admin': emp[3]
+        }
+        all_employees.append(emp_data)
+        if emp[0] != session.get('user_id', -1):
+            chat_employees.append({'id': emp[0], 'name': emp[1]})
     
     events_raw = conn.execute("SELECT id, event_date, title, description FROM events ORDER BY event_date DESC").fetchall()
     for ev in events_raw:
@@ -1747,8 +1799,57 @@ def section(section):
             'description': ev[3]
         })
     
+    # ЧАТ
+    if section == 'chat':
+        to_id = request.args.get('to_id', type=int)
+        if to_id:
+            chat_to_id = to_id
+            # Получаем сообщения между пользователями
+            msgs = conn.execute(
+                "SELECT m.*, e.name as from_name FROM messages m JOIN employees e ON m.from_id = e.id WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?) ORDER BY m.id",
+                (session['user_id'], to_id, to_id, session['user_id'])
+            ).fetchall()
+            for m in msgs:
+                chat_messages.append({
+                    'id': m[0],
+                    'from_id': m[1],
+                    'to_id': m[2],
+                    'message': m[3],
+                    'date': m[4],
+                    'date_ru': format_datetime_ru(m[4]),
+                    'from_name': m[6]
+                })
+            # Помечаем сообщения как прочитанные
+            conn.execute("UPDATE messages SET is_read = 1 WHERE from_id = ? AND to_id = ?", (to_id, session['user_id']))
+            conn.commit()
+    
+    # ПРОФИЛЬ
+    if section == 'profile':
+        profile_id = request.args.get('id', type=int)
+        if profile_id:
+            emp = conn.execute("SELECT id, name, avatar, is_admin FROM employees WHERE id=?", (profile_id,)).fetchone()
+            if emp:
+                profile_user = {'id': emp[0], 'name': emp[1], 'avatar': emp[2] or '', 'is_admin': emp[3]}
+                # Статистика для профиля (только если админ или сам сотрудник)
+                if session.get('is_admin') or session['user_id'] == profile_id:
+                    logs = conn.execute(
+                        "SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=?",
+                        (profile_id,)
+                    ).fetchall()
+                    total_hours = sum(l[0] for l in logs)
+                    total_salary = sum(l[0] * l[1] for l in logs)
+                    total_konserzhka = sum(1500 for l in logs if l[2] == 1)
+                    bonuses = conn.execute("SELECT amount FROM fixed_payments WHERE employee_id=?", (profile_id,)).fetchall()
+                    total_bonus = sum(b[0] for b in bonuses)
+                    profile_stats = {
+                        'total_hours': total_hours,
+                        'total_salary': total_salary,
+                        'total_konserzhka': total_konserzhka,
+                        'total_bonus': total_bonus,
+                        'grand_total': total_salary + total_konserzhka + total_bonus
+                    }
+    
     if session.get('is_admin'):
-        employees_raw = conn.execute("SELECT id, name, avatar FROM employees").fetchall()
         max_hours = 0
         for emp in employees_raw:
             rows_month = conn.execute(
@@ -1771,20 +1872,25 @@ def section(section):
                 'month_salary': month_salary,
                 'month_konserzhka': month_konserzhka,
                 'month_bonus': month_bonus,
-                'month_total': month_salary + month_konserzhka + month_bonus
+                'month_total': month_salary + month_konserzhka + month_bonus,
+                'is_admin': emp[3]
             }
-            employees.append(emp_data)
+            for i, e in enumerate(all_employees):
+                if e['id'] == emp[0]:
+                    all_employees[i] = emp_data
+                    break
             if month_hours > max_hours:
                 max_hours = month_hours
         
         if max_hours > 0:
-            for emp in employees:
-                percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
-                chart_data.append({
-                    'name': emp['name'],
-                    'hours': emp['month_hours'],
-                    'percent': min(percent, 100)
-                })
+            for emp in all_employees:
+                if 'month_hours' in emp:
+                    percent = (emp['month_hours'] / max_hours * 100) if max_hours > 0 else 0
+                    chart_data.append({
+                        'name': emp['name'],
+                        'hours': emp['month_hours'],
+                        'percent': min(percent, 100)
+                    })
             chart_data.sort(key=lambda x: x['hours'], reverse=True)
         
         logs = conn.execute(
@@ -1828,7 +1934,6 @@ def section(section):
                 'description': bonus[3]
             })
         
-        # === АУДИТ ===
         audit_raw = conn.execute(
             "SELECT admin_name, action_type, action_details, action_date FROM audit_log ORDER BY id DESC LIMIT 100"
         ).fetchall()
@@ -1842,12 +1947,19 @@ def section(section):
         
         stats = {
             'total_employees': len(employees_raw),
-            'total_hours': sum(e['month_hours'] for e in employees),
-            'total_salary': sum(e['month_salary'] for e in employees),
-            'total_konserzhka': sum(e['month_konserzhka'] for e in employees),
-            'grand_total': sum(e['month_total'] for e in employees)
+            'total_hours': sum(e.get('month_hours', 0) for e in all_employees),
+            'total_salary': sum(e.get('month_salary', 0) for e in all_employees),
+            'total_konserzhka': sum(e.get('month_konserzhka', 0) for e in all_employees),
+            'grand_total': sum(e.get('month_total', 0) for e in all_employees)
         }
     else:
+        stats = {
+            'total_employees': len(employees_raw),
+            'total_hours': 0,
+            'total_salary': 0,
+            'total_konserzhka': 0,
+            'grand_total': 0
+        }
         emp_id = session['user_id']
         logs = conn.execute(
             "SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC",
@@ -1877,6 +1989,19 @@ def section(section):
                 'total': total
             })
             payments[period + '_total'] = payments.get(period + '_total', 0) + total
+        
+        bonuses = conn.execute(
+            "SELECT f.payment_date, e.name, f.amount, f.description FROM fixed_payments f JOIN employees e ON f.employee_id=e.id WHERE e.id=? ORDER BY f.payment_date DESC",
+            (emp_id,)
+        ).fetchall()
+        for bonus in bonuses:
+            all_bonuses.append({
+                'date': bonus[0],
+                'date_ru': format_date_ru(bonus[0]),
+                'employee': bonus[1],
+                'amount': bonus[2],
+                'description': bonus[3]
+            })
     
     # Календарь
     year, month_num = map(int, month.split('-'))
@@ -1917,16 +2042,20 @@ def section(section):
     return render_template_string(
         HTML,
         session=session,
-        employees=employees,
+        all_employees=all_employees,
         all_logs=all_logs[:200],
         all_bonuses=all_bonuses[:200],
-        my_logs=[],
         stats=stats,
         payments=payments,
         events=events,
         calendar_days=calendar_days,
         chart_data=chart_data,
         audit_logs=audit_logs,
+        chat_employees=chat_employees,
+        chat_messages=chat_messages,
+        chat_to_id=chat_to_id,
+        profile_user=profile_user,
+        profile_stats=profile_stats,
         today=today_str,
         selected_month=month,
         current_section=section,
@@ -1937,95 +2066,43 @@ def section(section):
         msg=request.args.get('msg')
     )
 
-@app.route('/employee/<int:emp_id>')
-def employee_detail(emp_id):
+@app.route('/profile/<int:user_id>')
+def view_profile(user_id):
     if session.get('user_id') is None:
         return redirect(url_for('index', msg='Войдите в систему!'))
     
-    if not session.get('is_admin') and session['user_id'] != emp_id:
-        return redirect(url_for('index', msg='Нет доступа!'))
-    
     conn = get_db()
-    today = date.today()
-    month = request.args.get('month', today.strftime('%Y-%m'))
-    
-    employee = conn.execute("SELECT id, name, avatar FROM employees WHERE id=?", (emp_id,)).fetchone()
-    if not employee:
+    emp = conn.execute("SELECT id, name, avatar, is_admin FROM employees WHERE id=?", (user_id,)).fetchone()
+    if not emp:
         conn.close()
-        return redirect(url_for('index', msg='Сотрудник не найден!'))
+        return redirect(url_for('section', section='employees', msg='Сотрудник не найден!'))
     
-    logs_raw = conn.execute(
-        "SELECT work_date, hours, rate, konserzhka FROM hours_log WHERE employee_id=? AND work_date LIKE ? ORDER BY work_date DESC",
-        (emp_id, month + "%")
-    ).fetchall()
+    can_view_stats = session.get('is_admin') or session['user_id'] == user_id
     
-    logs = []
-    total_salary = 0
-    total_konserzhka = 0
-    for log in logs_raw:
-        total = log[1] * log[2] + (1500 if log[3] == 1 else 0)
-        total_salary += log[1] * log[2]
-        total_konserzhka += 1500 if log[3] == 1 else 0
-        logs.append({
-            'date': log[0],
-            'date_ru': format_date_ru(log[0]),
-            'hours': log[1],
-            'rate': log[2],
-            'konserzhka': log[3],
-            'total': total
-        })
-    
-    bonuses_raw = conn.execute(
-        "SELECT payment_date, amount, description FROM fixed_payments WHERE employee_id=? ORDER BY payment_date DESC",
-        (emp_id,)
-    ).fetchall()
-    bonuses = []
-    total_bonus = 0
-    for bonus in bonuses_raw:
-        total_bonus += bonus[1]
-        bonuses.append({
-            'date': bonus[0],
-            'date_ru': format_date_ru(bonus[0]),
-            'amount': bonus[1],
-            'description': bonus[2]
-        })
-    
-    month_hours = sum(l['hours'] for l in logs)
-    month_total = total_salary + total_konserzhka + total_bonus
-    
-    all_logs = conn.execute(
-        "SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=?",
-        (emp_id,)
-    ).fetchall()
-    total_hours = sum(l[0] for l in all_logs)
-    total_salary_all = sum(l[0] * l[1] for l in all_logs)
-    total_konserzhka_all = sum(1500 for l in all_logs if l[2] == 1)
-    
-    all_bonuses = conn.execute(
-        "SELECT amount FROM fixed_payments WHERE employee_id=?",
-        (emp_id,)
-    ).fetchall()
-    total_bonus_all = sum(b[0] for b in all_bonuses)
-    
-    grand_total = total_salary_all + total_konserzhka_all + total_bonus_all
+    stats = {}
+    if can_view_stats:
+        logs = conn.execute("SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=?", (user_id,)).fetchall()
+        total_hours = sum(l[0] for l in logs)
+        total_salary = sum(l[0] * l[1] for l in logs)
+        total_konserzhka = sum(1500 for l in logs if l[2] == 1)
+        bonuses = conn.execute("SELECT amount FROM fixed_payments WHERE employee_id=?", (user_id,)).fetchall()
+        total_bonus = sum(b[0] for b in bonuses)
+        stats = {
+            'total_hours': total_hours,
+            'total_salary': total_salary,
+            'total_konserzhka': total_konserzhka,
+            'total_bonus': total_bonus,
+            'grand_total': total_salary + total_konserzhka + total_bonus
+        }
     
     conn.close()
     
     return render_template_string(
-        EMPLOYEE_HTML,
-        employee={'id': employee[0], 'name': employee[1], 'avatar': employee[2] or ''},
-        logs=logs,
-        bonuses=bonuses,
-        total_hours=total_hours,
-        total_salary=total_salary_all,
-        total_konserzhka=total_konserzhka_all,
-        total_bonus=total_bonus_all,
-        grand_total=grand_total,
-        month_hours=month_hours,
-        month_konserzhka=total_konserzhka,
-        month_total=month_total,
-        selected_month=month,
-        msg=request.args.get('msg')
+        PROFILE_HTML,
+        session=session,
+        user={'id': emp[0], 'name': emp[1], 'avatar': emp[2] or '', 'is_admin': emp[3]},
+        stats=stats,
+        can_view_stats=can_view_stats
     )
 
 @app.route('/login', methods=['POST'])
@@ -2064,6 +2141,61 @@ def logout():
     session.clear()
     return redirect(url_for('index', msg='Вы вышли из системы'))
 
+# === ЧАТ ===
+@app.route('/send_message', methods=['POST'])
+def send_message():
+    if session.get('user_id') is None:
+        return redirect(url_for('index', msg='Войдите в систему!'))
+    
+    to_id = int(request.form.get('to_id', 0))
+    message = request.form.get('message', '').strip()
+    
+    if not to_id or not message:
+        return redirect(url_for('section', section='chat', msg='Введите сообщение!'))
+    
+    conn = get_db()
+    conn.execute(
+        "INSERT INTO messages (from_id, to_id, message, date) VALUES (?, ?, ?, ?)",
+        (session['user_id'], to_id, message, datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    )
+    conn.commit()
+    conn.close()
+    
+    return redirect(url_for('section', section='chat', to_id=to_id))
+
+@app.route('/get_messages')
+def get_messages():
+    if session.get('user_id') is None:
+        return {'html': ''}
+    
+    to_id = request.args.get('to_id', type=int)
+    if not to_id:
+        return {'html': ''}
+    
+    conn = get_db()
+    msgs = conn.execute(
+        "SELECT m.*, e.name as from_name FROM messages m JOIN employees e ON m.from_id = e.id WHERE (from_id = ? AND to_id = ?) OR (from_id = ? AND to_id = ?) ORDER BY m.id",
+        (session['user_id'], to_id, to_id, session['user_id'])
+    ).fetchall()
+    conn.close()
+    
+    html = ''
+    for m in msgs:
+        is_outgoing = m[1] == session['user_id']
+        html += f'''
+        <div class="chat-message {'outgoing' if is_outgoing else 'incoming'}">
+            <div class="msg-sender">{m[6]}</div>
+            <div class="msg-text">{m[3]}</div>
+            <div class="msg-date">{format_date_ru(m[4].split(' ')[0])}</div>
+        </div>
+        '''
+    
+    if not html:
+        html = '<p style="color:var(--text-secondary);text-align:center;padding:20px;">Нет сообщений.</p>'
+    
+    return {'html': html}
+
+# === УПРАВЛЕНИЕ ===
 @app.route('/add_employee', methods=['POST'])
 def add_employee():
     if not session.get('is_admin'):
@@ -2080,7 +2212,6 @@ def add_employee():
         conn.execute("INSERT INTO employees (name, password) VALUES (?, ?)", (name, password))
         conn.commit()
         msg = f"Сотрудник {name} добавлен!"
-        # Логируем действие
         log_audit(session['user_id'], session['user_name'], 'Добавление сотрудника', f'{name}')
     except sqlite3.IntegrityError:
         msg = f"Сотрудник '{name}' уже существует!"
@@ -2228,6 +2359,35 @@ def add_bonus():
     
     return redirect(url_for('section', section='bonus', msg=msg))
 
+@app.route('/upload_avatar_self', methods=['POST'])
+def upload_avatar_self():
+    if session.get('user_id') is None:
+        return redirect(url_for('index', msg='Войдите в систему!'))
+    
+    # Только для самого сотрудника или админа
+    if 'avatar' not in request.files:
+        return redirect(url_for('index', msg='Файл не выбран!'))
+    
+    file = request.files['avatar']
+    if file.filename == '':
+        return redirect(url_for('index', msg='Файл не выбран!'))
+    
+    if file:
+        file_data = file.read()
+        base64_data = base64.b64encode(file_data).decode('utf-8')
+        
+        conn = get_db()
+        conn.execute("UPDATE employees SET avatar = ? WHERE id = ?", (base64_data, session['user_id']))
+        conn.commit()
+        conn.close()
+        
+        msg = "Аватар обновлён!"
+        log_audit(session['user_id'], session['user_name'], 'Обновление аватара', f'{session["user_name"]}')
+    else:
+        msg = "Ошибка загрузки файла!"
+    
+    return redirect(url_for('profile', user_id=session['user_id']))
+
 @app.route('/upload_avatar', methods=['POST'])
 def upload_avatar():
     if not session.get('is_admin'):
@@ -2242,7 +2402,6 @@ def upload_avatar():
         return redirect(url_for('index', msg='Файл не выбран!'))
     
     if file:
-        # Читаем файл и кодируем в base64
         file_data = file.read()
         base64_data = base64.b64encode(file_data).decode('utf-8')
         
@@ -2297,6 +2456,45 @@ def export():
         mimetype='text/csv',
         as_attachment=True,
         download_name=f'zarplata_{month}.csv'
+    )
+
+@app.route('/profile/<int:user_id>')
+def profile(user_id):
+    if session.get('user_id') is None:
+        return redirect(url_for('index', msg='Войдите в систему!'))
+    
+    conn = get_db()
+    emp = conn.execute("SELECT id, name, avatar, is_admin FROM employees WHERE id=?", (user_id,)).fetchone()
+    if not emp:
+        conn.close()
+        return redirect(url_for('section', section='employees', msg='Сотрудник не найден!'))
+    
+    can_view_stats = session.get('is_admin') or session['user_id'] == user_id
+    
+    stats = {}
+    if can_view_stats:
+        logs = conn.execute("SELECT hours, rate, konserzhka FROM hours_log WHERE employee_id=?", (user_id,)).fetchall()
+        total_hours = sum(l[0] for l in logs)
+        total_salary = sum(l[0] * l[1] for l in logs)
+        total_konserzhka = sum(1500 for l in logs if l[2] == 1)
+        bonuses = conn.execute("SELECT amount FROM fixed_payments WHERE employee_id=?", (user_id,)).fetchall()
+        total_bonus = sum(b[0] for b in bonuses)
+        stats = {
+            'total_hours': total_hours,
+            'total_salary': total_salary,
+            'total_konserzhka': total_konserzhka,
+            'total_bonus': total_bonus,
+            'grand_total': total_salary + total_konserzhka + total_bonus
+        }
+    
+    conn.close()
+    
+    return render_template_string(
+        PROFILE_HTML,
+        session=session,
+        user={'id': emp[0], 'name': emp[1], 'avatar': emp[2] or '', 'is_admin': emp[3]},
+        stats=stats,
+        can_view_stats=can_view_stats
     )
 
 if __name__ == '__main__':
